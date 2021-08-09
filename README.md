@@ -1,5 +1,5 @@
 # Modmail Plugins
-Modmail plugins for our Modmail bot
+Modmail plugins for our Modmail bot, located at https://github.com/kyb3r/modmail.
 
 ## List of plugins
 - **Case insensitive snippets**: Allow snippets to be ran even if with the wrong case. For example, `?Dm-RePort` will be recognized as `?dm-report`.
