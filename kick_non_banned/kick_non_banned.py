@@ -3,8 +3,8 @@ from discord.ext import commands
 
 PYDIS_NO_KICK_ROLES = (
     267627879762755584,  # Owners
-    267628507062992896,  # Admins
-    267629731250176001,  # Moderation Team
+    409416496733880320,  # DevOps
+    476190391595433985,  # Test server owners
 )
 
 
