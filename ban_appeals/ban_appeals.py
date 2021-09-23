@@ -154,7 +154,7 @@ class BanAppeals(commands.Cog):
         """If the new thread is for an appeal, move it to the appeals category."""
         await self.wait_until_loaded()
         if await self._is_banned_pydis(thread.recipient):
-            await thread.channel.edit(category=self.appeals_category)
+            await thread.channel.edit(category=self.appeals_category, sync_permissions=True)
 
 
 def setup(bot: ModmailBot):
