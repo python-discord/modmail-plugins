@@ -41,14 +41,14 @@ class BanAppeals(commands.Cog):
         Return `None` to indicate the member could not be found.
         """
         if member := guild.get_member(member_id):
-            log.info("%s retrieved from cache.", member)
+            log.debug("%s retrieved from cache.", member)
         else:
             try:
                 member = await guild.fetch_member(member_id)
             except discord.errors.NotFound:
-                log.info("Failed to fetch %d from API.", member_id)
+                log.debug("Failed to fetch %d from API.", member_id)
                 return None
-            log.info("%s fetched from API.", member)
+            log.debug("%s fetched from API.", member)
         return member
     
     @staticmethod
@@ -59,14 +59,14 @@ class BanAppeals(commands.Cog):
         Return `None` to indicate the channel could not be found.
         """
         if channel := guild.get_channel(channel_id):
-            log.info("%s retrieved from cache.", channel)
+            log.debug("%s retrieved from cache.", channel)
         else:
             channels = await guild.fetch_channels()
             channel = discord.utils.get(channels, id=channel_id)
             if channel:
-                log.info("%s fetched from API.", channel)
+                log.debug("%s fetched from API.", channel)
             else:
-                log.info("Failed to fetch %d from API.", channel_id)
+                log.debug("Failed to fetch %d from API.", channel_id)
 
         return channel
 
