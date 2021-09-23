@@ -21,6 +21,7 @@ class BanAppeals(commands.Cog):
     def __init__(self, bot: ModmailBot):
         self.bot = bot
         self._loaded = asyncio.Event()
+        self._init_lock = asyncio.Lock()
 
         self._pydis_appeals_category_id = 890331800025563216  # The category in PyDis to move appeal threads to
         self.pydis_guild: t.Optional[discord.Guild] = None
@@ -70,19 +71,23 @@ class BanAppeals(commands.Cog):
 
         return channel
 
-    async def init_plugin(self) -> None:
-        self.pydis_guild = self.bot.guild
-        self.appeals_guild = self.bot.get_guild(self._appeals_guild_id)
-        self.appeals_category = await self.get_or_fetch_channel(self.pydis_guild, self._pydis_appeals_category_id)
-        self._loaded.set()
-        log.info("Plugin loaded, checking if there are people to kick.")
-
+    async def ensure_plugin_init(self) -> None:
+        async with self._init_lock:
+            # Locked acquired, ensure plugin didn't load while waiting for lock
+            if self._loaded.is_set():
+                return
+            self.pydis_guild = self.bot.guild
+            self.appeals_guild = self.bot.get_guild(self._appeals_guild_id)
+            self.appeals_category = await self.get_or_fetch_channel(self.pydis_guild, self._pydis_appeals_category_id)
+            self._loaded.set()
+            log.info("Plugin loaded, checking if there are people to kick.")
+        # Don't hold the lock which syncing, as _loaded has already been set.
         await self._sync_kicks()
 
     @commands.Cog.listener()
     async def on_plugins_ready(self):
         """Init the plugin on boot."""
-        await self.init_plugin()
+        await self.ensure_plugin_init()
     
     @commands.Cog.listener()
     async def on_thread_initiate(self, *args) -> None:
@@ -91,8 +96,7 @@ class BanAppeals(commands.Cog):
         
         This is required as on_plugins_ready doesn't fire when this plugin is added/reload.
         """
-        if not self._loaded.is_set():
-            await self.init_plugin()
+        await self.ensure_plugin_init()
     
     async def _sync_kicks(self) -> None:
         """Iter through all members in appeals guild, kick them if they meet criteria."""
@@ -129,7 +133,7 @@ class BanAppeals(commands.Cog):
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member) -> None:
         """Kick members who join appeal server, but are in main server."""
-        await self.wait_until_loaded()
+        await self.ensure_plugin_init()
 
         if member.guild == self.pydis_guild:
             # Join event from PyDis
@@ -144,15 +148,9 @@ class BanAppeals(commands.Cog):
             await self._maybe_kick_user(member)
     
     @commands.Cog.listener()
-    async def on_thread_ready(
-        self,
-        thread: Thread,
-        creator: discord.Member,
-        category: discord.CategoryChannel,
-        initial_message: discord.Message
-    ) -> None:
+    async def on_thread_ready(self, thread: Thread, *args) -> None:
         """If the new thread is for an appeal, move it to the appeals category."""
-        await self.wait_until_loaded()
+        await self.ensure_plugin_init()
         if await self._is_banned_pydis(thread.recipient):
             await thread.channel.edit(category=self.appeals_category, sync_permissions=True)
 
