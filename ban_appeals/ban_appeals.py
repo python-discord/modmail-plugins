@@ -33,11 +33,48 @@ class BanAppeals(commands.Cog):
     async def wait_until_loaded(self) -> None:
         await self._loaded.wait()
     
+    @staticmethod
+    async def get_or_fetch_member(guild: discord.Guild, member_id: int) -> t.Optional[discord.Member]:
+        """
+        Attempt to get a member from cache; on failure fetch from the API.
+
+        Return `None` to indicate the member could not be found.
+        """
+        if member := guild.get_member(member_id):
+            log.info("%s retrieved from cache.", member)
+        else:
+            try:
+                member = await guild.fetch_member(member_id)
+            except discord.errors.NotFound:
+                log.info("Failed to fetch %d from API.", member_id)
+                return None
+            log.info("%s fetched from API.", member)
+        return member
+    
+    @staticmethod
+    async def get_or_fetch_channel(guild: discord.Guild, channel_id: int) -> t.Optional[discord.ChannelType]:
+        """
+        Attempt to get a channel from cache; on failure fetch from the API.
+
+        Return `None` to indicate the channel could not be found.
+        """
+        if channel := guild.get_channel(channel_id):
+            log.info("%s retrieved from cache.", channel)
+        else:
+            channels = await guild.fetch_channels()
+            channel = discord.utils.get(channels, id=channel_id)
+            if channel:
+                log.info("%s fetched from API.", channel)
+            else:
+                log.info("Failed to fetch %d from API.", channel_id)
+
+        return channel
+
     @commands.Cog.listener()
     async def on_plugins_ready(self):
         self.pydis_guild = self.bot.guild
         self.appeals_guild = self.bot.get_guild(self._appeals_guild_id)
-        self.appeals_category = self.pydis_guild.get_channel(self._pydis_appeals_category_id)
+        self.appeals_category = self.get_or_fetch_channel(self.pydis_guild, self._pydis_appeals_category_id)
         self._loaded.set()
         log.info("Plugin loaded, checking if there are people to kick.")
 
@@ -54,14 +91,17 @@ class BanAppeals(commands.Cog):
             return
 
         if not await self._is_banned_pydis(member):
-            pydis_member = self.pydis_guild.get_member(member.id)
+            pydis_member = self.get_or_fetch_member(self.pydis_guild, member.id)
             if pydis_member and (
                 any(role.id in PYDIS_NO_KICK_ROLE_IDS for role in pydis_member.roles)
                 or APPEAL_NO_KICK_ROLE_ID in (role.id for role in member.roles)
             ):
                 log.info("Not kicking %s as they have a bypass role", member)
                 return
-            await member.kick(reason="Not banned in main server")
+            try:
+                await member.kick(reason="Not banned in main server")
+            except discord.Forbidden:
+                log.error("Failed to kick %s due to insufficient permissions.", member)
             log.info("Kicked %s", member)
     
     async def _is_banned_pydis(self, member: discord.Member) -> bool:
@@ -80,7 +120,8 @@ class BanAppeals(commands.Cog):
         if member.guild == self.pydis_guild:
             # Join event from PyDis
             # Kick them from appeals guild now they're back in PyDis
-            if appeals_member := self.appeals_guild.get_member(member.id):
+            appeals_member = self.get_or_fetch_member(self.appeals_guild, member.id)
+            if appeals_member:
                 await appeals_member.kick(reason="Rejoined PyDis")
                 log.info("Kicked %s as they rejoined PyDis.", member)
         elif member.guild == self.appeals_guild:
