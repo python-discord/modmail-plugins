@@ -42,14 +42,14 @@ class BanAppeals(commands.Cog):
         Return `None` to indicate the member could not be found.
         """
         if member := guild.get_member(member_id):
-            log.debug("%s retrieved from cache.", member)
+            log.debug("%s (%d) retrieved from cache.", member, member.id)
         else:
             try:
                 member = await guild.fetch_member(member_id)
             except discord.errors.NotFound:
                 log.debug("Failed to fetch %d from API.", member_id)
                 return None
-            log.debug("%s fetched from API.", member)
+            log.debug("%s (%d) fetched from API.", member, member.id)
         return member
     
     @staticmethod
@@ -114,13 +114,13 @@ class BanAppeals(commands.Cog):
                 any(role.id in PYDIS_NO_KICK_ROLE_IDS for role in pydis_member.roles)
                 or APPEAL_NO_KICK_ROLE_ID in (role.id for role in member.roles)
             ):
-                log.info("Not kicking %s as they have a bypass role", member)
+                log.info("Not kicking %s (%d) as they have a bypass role", member, member.id)
                 return
             try:
                 await member.kick(reason="Not banned in main server")
             except discord.Forbidden:
-                log.error("Failed to kick %s due to insufficient permissions.", member)
-            log.info("Kicked %s", member)
+                log.error("Failed to kick %s (%d)due to insufficient permissions.", member, member.id)
+            log.info("Kicked %s (%d).", member, member.id)
     
     async def _is_banned_pydis(self, member: discord.Member) -> bool:
         """See if the given member is banned in PyDis."""
@@ -141,7 +141,7 @@ class BanAppeals(commands.Cog):
             appeals_member = await self.get_or_fetch_member(self.appeals_guild, member.id)
             if appeals_member:
                 await appeals_member.kick(reason="Rejoined PyDis")
-                log.info("Kicked %s as they rejoined PyDis.", member)
+                log.info("Kicked %s (%d) as they rejoined PyDis.", member, member.id)
         elif member.guild == self.appeals_guild:
             # Join event from the appeals server
             # Kick them if they are not banned and not part of the bypass list
