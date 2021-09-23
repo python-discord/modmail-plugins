@@ -39,6 +39,7 @@ class BanAppeals(commands.Cog):
         self.appeals_guild = self.bot.get_guild(self._appeals_guild_id)
         self.appeals_category = self.pydis_guild.get_channel(self._pydis_appeals_category_id)
         self._loaded.set()
+        log.info("Plugin loaded, checking if there are people to kick.")
 
         await self._sync_kicks()
     
@@ -58,8 +59,10 @@ class BanAppeals(commands.Cog):
                 any(role.id in PYDIS_NO_KICK_ROLE_IDS for role in pydis_member.roles)
                 or APPEAL_NO_KICK_ROLE_ID in (role.id for role in member.roles)
             ):
+                log.info("Not kicking %s as they have a bypass role", member)
                 return
             await member.kick(reason="Not banned in main server")
+            log.info("Kicked %s", member)
     
     async def _is_banned_pydis(self, member: discord.Member) -> bool:
         """See if the given member is banned in PyDis."""
@@ -79,6 +82,7 @@ class BanAppeals(commands.Cog):
             # Kick them from appeals guild now they're back in PyDis
             if appeals_member := self.appeals_guild.get_member(member.id):
                 await appeals_member.kick(reason="Rejoined PyDis")
+                log.info("Kicked %s as they rejoined PyDis.", member)
         elif member.guild == self.appeals_guild:
             # Join event from the appeals server
             # Kick them if they are not banned and not part of the bypass list
