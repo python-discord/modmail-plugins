@@ -59,10 +59,7 @@ class BanAppeals(commands.Cog):
                 or APPEAL_NO_KICK_ROLE_ID in (role.id for role in member.roles)
             ):
                 return
-            try:
-                await member.kick(reason="Not banned in main server")
-            except discord.errors.Forbidden:
-                log.info("Kicking %s", member)
+            await member.kick(reason="Not banned in main server")
     
     async def _is_banned_pydis(self, member: discord.Member) -> bool:
         """See if the given member is banned in PyDis."""
