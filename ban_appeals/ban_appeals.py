@@ -70,15 +70,29 @@ class BanAppeals(commands.Cog):
 
         return channel
 
-    @commands.Cog.listener()
-    async def on_plugins_ready(self):
+    async def init_plugin(self) -> None:
         self.pydis_guild = self.bot.guild
         self.appeals_guild = self.bot.get_guild(self._appeals_guild_id)
-        self.appeals_category = self.get_or_fetch_channel(self.pydis_guild, self._pydis_appeals_category_id)
+        self.appeals_category = await self.get_or_fetch_channel(self.pydis_guild, self._pydis_appeals_category_id)
         self._loaded.set()
         log.info("Plugin loaded, checking if there are people to kick.")
 
         await self._sync_kicks()
+
+    @commands.Cog.listener()
+    async def on_plugins_ready(self):
+        """Init the plugin on boot."""
+        await self.init_plugin()
+    
+    @commands.Cog.listener()
+    async def on_thread_initiate(self, *args) -> None:
+        """
+        Ensures everything is loaded when a new thread is created.
+        
+        This is required as on_plugins_ready doesn't fire when this plugin is added/reload.
+        """
+        if not self._loaded.is_set():
+            await self.init_plugin()
     
     async def _sync_kicks(self) -> None:
         """Iter through all members in appeals guild, kick them if they meet criteria."""
@@ -91,7 +105,7 @@ class BanAppeals(commands.Cog):
             return
 
         if not await self._is_banned_pydis(member):
-            pydis_member = self.get_or_fetch_member(self.pydis_guild, member.id)
+            pydis_member = await self.get_or_fetch_member(self.pydis_guild, member.id)
             if pydis_member and (
                 any(role.id in PYDIS_NO_KICK_ROLE_IDS for role in pydis_member.roles)
                 or APPEAL_NO_KICK_ROLE_ID in (role.id for role in member.roles)
@@ -120,7 +134,7 @@ class BanAppeals(commands.Cog):
         if member.guild == self.pydis_guild:
             # Join event from PyDis
             # Kick them from appeals guild now they're back in PyDis
-            appeals_member = self.get_or_fetch_member(self.appeals_guild, member.id)
+            appeals_member = await self.get_or_fetch_member(self.appeals_guild, member.id)
             if appeals_member:
                 await appeals_member.kick(reason="Rejoined PyDis")
                 log.info("Kicked %s as they rejoined PyDis.", member)
