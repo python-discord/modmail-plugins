@@ -26,6 +26,7 @@ class BanAppeals(commands.Cog):
 
         self._appeals_guild_id = 890261951979061298
         self.appeals_guild: t.Optional[discord.Guild] = None
+        self.logs_channel: t.Optional[discord.TextChannel] = None
 
         self.appeals_category: t.Optional[discord.CategoryChannel] = None
 
@@ -72,6 +73,7 @@ class BanAppeals(commands.Cog):
         self.pydis_guild = self.bot.guild
         self.appeals_guild = self.bot.get_guild(self._appeals_guild_id)
         self.appeals_category = await self.get_or_fetch_channel(self.pydis_guild, self._pydis_appeals_category_id)
+        self.logs_channel = discord.utils.get(self.appeals_guild.channels, name="logs")
 
         log.info("Plugin loaded, checking if there are people to kick.")
         await self._sync_kicks()
@@ -98,6 +100,7 @@ class BanAppeals(commands.Cog):
                 await member.kick(reason="Not banned in main server")
             except discord.Forbidden:
                 log.error("Failed to kick %s (%d)due to insufficient permissions.", member, member.id)
+            await self.logs_channel.send(f"Kicked {member} ({member.id}) on join as they're not banned in main server.")
             log.info("Kicked %s (%d).", member, member.id)
     
     async def _is_banned_pydis(self, member: discord.Member) -> bool:
@@ -119,6 +122,7 @@ class BanAppeals(commands.Cog):
             appeals_member = await self.get_or_fetch_member(self.appeals_guild, member.id)
             if appeals_member:
                 await appeals_member.kick(reason="Rejoined PyDis")
+                await self.logs_channel.send(f"Kicked {member} ({member.id}) as they rejoined PyDis.")
                 log.info("Kicked %s (%d) as they rejoined PyDis.", member, member.id)
         elif member.guild == self.appeals_guild:
             # Join event from the appeals server
