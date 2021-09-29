@@ -1,5 +1,4 @@
 import asyncio
-import contextlib
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
 import typing as t
@@ -11,6 +10,7 @@ from bot import ModmailBot
 from core import checks
 from core.models import getLogger, PermissionLevel
 from core.thread import Thread
+from .utils import async_tasks
 
 log = getLogger(__name__)
 
@@ -39,33 +39,7 @@ class PingManager(commands.Cog):
         self.ping_tasks: list[PingTask] = None
         self.db = bot.plugin_db.get_partition(self)
 
-        self.init_task = self.create_task(self.init_plugin())
-    
-    def create_task(
-        self,
-        coro: t.Awaitable,
-        event_loop: t.Optional[asyncio.AbstractEventLoop] = None
-    ) -> asyncio.Task:
-        """
-        Wrapper for creating asyncio `Task`s which logs exceptions raised in the task.
-
-        If the loop kwarg is provided, the task is created from that event loop, otherwise the running loop is used.
-        """
-        if event_loop is not None:
-            task = event_loop.create_task(coro)
-        else:
-            task = asyncio.create_task(coro)
-        task.add_done_callback(self._log_task_exception)
-        return task
-
-    @staticmethod
-    def _log_task_exception(task: asyncio.Task, *args) -> None:
-        """Retrieve and log the exception raised in `task` if one exists."""
-        with contextlib.suppress(asyncio.CancelledError):
-            exception = task.exception()
-            # Log the exception if one exists.
-            if exception:
-                log.error(f"Error in task {task.get_name()} {id(task)}!", exc_info=exception)
+        self.init_task = async_tasks.create_task(self.init_plugin())
 
     async def init_plugin(self) -> None:
         """Fetch the current config from the db."""
@@ -79,8 +53,8 @@ class PingManager(commands.Cog):
         log.info("Loaded config: %s", self.config)
         log.info("Loaded %d ping tasks", len(self.ping_tasks))
         for task in self.ping_tasks:
-            self.create_task(self.maybe_ping_later(task))
-    
+            async_tasks.create_task(self.maybe_ping_later(task))
+
     @commands.group(invoke_without_command=True)
     @checks.has_permissions(PermissionLevel.REGULAR)
     async def ping_delay(self, ctx: commands.Context) -> None:
@@ -240,7 +214,7 @@ class PingManager(commands.Cog):
             upsert=True,
         )
 
-        self.create_task(self.maybe_ping_later(ping_task), self.bot.loop)
+        async_tasks.create_task(self.maybe_ping_later(ping_task), self.bot.loop)
 
 
 def setup(bot: ModmailBot):
