@@ -17,7 +17,10 @@ APPEAL_NO_KICK_ROLE_ID = 890270873813139507  # Staff in appeals server
 
 log = getLogger(__name__)
 
+
 class BanAppeals(commands.Cog):
+    """A plugin to manage threads from a separate ban appeal server."""
+
     def __init__(self, bot: ModmailBot):
         self.bot = bot
 
@@ -30,8 +33,8 @@ class BanAppeals(commands.Cog):
 
         self.appeals_category: t.Optional[discord.CategoryChannel] = None
 
-        self.init_task = asyncio.create_task(self.ensure_plugin_init())
-    
+        self.init_task = asyncio.create_task(self.init_plugin())
+
     @staticmethod
     async def get_or_fetch_member(guild: discord.Guild, member_id: int) -> t.Optional[discord.Member]:
         """
@@ -49,7 +52,7 @@ class BanAppeals(commands.Cog):
                 return None
             log.debug("%s (%d) fetched from API.", member, member.id)
         return member
-    
+
     @staticmethod
     async def get_or_fetch_channel(guild: discord.Guild, channel_id: int) -> t.Optional[discord.ChannelType]:
         """
@@ -69,7 +72,8 @@ class BanAppeals(commands.Cog):
 
         return channel
 
-    async def ensure_plugin_init(self) -> None:
+    async def init_plugin(self) -> None:
+        """Initialise the plugin's configuration."""
         self.pydis_guild = self.bot.guild
         self.appeals_guild = self.bot.get_guild(self._appeals_guild_id)
         self.appeals_category = await self.get_or_fetch_channel(self.pydis_guild, self._pydis_appeals_category_id)
@@ -77,7 +81,7 @@ class BanAppeals(commands.Cog):
 
         log.info("Plugin loaded, checking if there are people to kick.")
         await self._sync_kicks()
-    
+
     async def _sync_kicks(self) -> None:
         """Iter through all members in appeals guild, kick them if they meet criteria."""
         for member in self.appeals_guild.members:
@@ -102,7 +106,7 @@ class BanAppeals(commands.Cog):
                 log.error("Failed to kick %s (%d)due to insufficient permissions.", member, member.id)
             await self.logs_channel.send(f"Kicked {member} ({member.id}) on join as they're not banned in main server.")
             log.info("Kicked %s (%d).", member, member.id)
-    
+
     async def _is_banned_pydis(self, member: discord.Member) -> bool:
         """See if the given member is banned in PyDis."""
         try:
@@ -128,7 +132,7 @@ class BanAppeals(commands.Cog):
             # Join event from the appeals server
             # Kick them if they are not banned and not part of the bypass list
             await self._maybe_kick_user(member)
-    
+
     @commands.Cog.listener()
     async def on_thread_ready(self, thread: Thread, *args) -> None:
         """If the new thread is for an appeal, move it to the appeals category."""
@@ -138,5 +142,6 @@ class BanAppeals(commands.Cog):
             await thread.channel.edit(category=self.appeals_category, sync_permissions=True)
 
 
-def setup(bot: ModmailBot):
+def setup(bot: ModmailBot) -> None:
+    """Add the BanAppeals cog."""
     bot.add_cog(BanAppeals(bot))
