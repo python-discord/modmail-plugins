@@ -107,14 +107,14 @@ class PingManager(commands.Cog):
         """Get the number of seconds to wait after a thread is opened to ping."""
         await ctx.send(f"The ping string is {self.config.ping_string}.", allowed_mentions=None)
 
-    @commands.group(invoke_without_command=True)
+    @commands.group(invoke_without_command=True, aliases=("ping_ignored_categories", "ping_ignore"))
     @checks.has_permissions(PermissionLevel.SUPPORTER)
     async def ping_ignore_categories(self, ctx: commands.Context) -> None:
         """Manage what categories never get sent pings in them."""
         await ctx.send_help(ctx.command)
 
     @checks.has_permissions(PermissionLevel.OWNER)
-    async def set_ping(self, ctx: commands.Context, category_to_ignore: discord.CategoryChannel) -> None:
+    @ping_ignore_categories.command(name="add", aliases=("set",))
     async def set_category(self, ctx: commands.Context, category_to_ignore: discord.CategoryChannel) -> None:
         """Add a category to the list of ignored categories."""
         await self.init_task
@@ -138,7 +138,7 @@ class PingManager(commands.Cog):
         await self.init_task
 
         if not self.config.ignored_categories:
-            await ctx.send(f"There are currently not ignored categories.")
+            await ctx.send(f"There are currently no ignored categories.")
             return
 
         ignored_categories_str = ', '.join(map(str, self.config.ignored_categories))
