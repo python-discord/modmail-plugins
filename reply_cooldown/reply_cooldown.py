@@ -1,7 +1,10 @@
-from collections import deque
 import time
+from collections import deque
 
 import discord
+from discord.ext import commands
+
+from bot import ModmailBot
 from core.thread import Thread
 
 # Number of messages kept in memory to check for double sends
@@ -13,11 +16,13 @@ MESSAGES_BUFFER = deque(maxlen=BUFFER_LENGTH)
 COOLDOWN_TIME = 10
 
 
-def setup(bot):
+def setup(bot: ModmailBot) -> None:
+    """Monkey patch the built-in reply function to add a cooldown between uses."""
     _reply = Thread.reply
 
-    async def reply(self, message: discord.Message, anonymous: bool = False, plain: bool = False):
-        # Bypass the cooldown if the message has attachements
+    async def reply(self: commands.Cog, message: discord.Message, anonymous: bool = False, plain: bool = False) -> None:
+        """The new reply function with a cooldown between uses."""
+        # Bypass the cooldown if the message has attachments.
         if not message.attachments:
             for entry in MESSAGES_BUFFER:
                 if (

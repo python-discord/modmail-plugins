@@ -2,19 +2,23 @@ from typing import Optional
 
 from discord.ext import commands
 
+from bot import ModmailBot
 from core import checks
 from core.models import PermissionLevel
 
 
 class Tagging(commands.Cog):
-    def __init__(self, bot):
+    """A plugin that enables mods to prefix the thread name with a tag."""
+
+    def __init__(self, bot: ModmailBot):
         self.bot = bot
 
     @checks.has_permissions(PermissionLevel.SUPPORTER)
     @commands.command()
-    async def tag(self, ctx, tag: Optional[str]):
+    async def tag(self, ctx: commands.Context, tag: Optional[str]) -> None:
         """
         Append a tag at the beginning of the channel name.
+
         Using the command without any argument will reset it.
         """
         clean_name = ctx.channel.name.split("｜", maxsplit=1)[-1]
@@ -28,5 +32,6 @@ class Tagging(commands.Cog):
         await ctx.message.add_reaction("\u2705")
 
 
-def setup(bot):
+def setup(bot: ModmailBot) -> None:
+    """Add the Tagging plugin."""
     bot.add_cog(Tagging(bot))
