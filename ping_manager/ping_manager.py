@@ -56,13 +56,13 @@ class PingManager(commands.Cog):
             async_tasks.create_task(self.maybe_ping_later(task))
 
     @commands.group(invoke_without_command=True)
-    @checks.has_permissions(PermissionLevel.REGULAR)
+    @checks.has_permissions(PermissionLevel.SUPPORTER)
     async def ping_delay(self, ctx: commands.Context) -> None:
         """Manage when to ping in threads without a staff response."""
         await ctx.send_help(ctx.command)
-    
+
     @ping_delay.command(name="set")
-    @checks.has_permissions(PermissionLevel.REGULAR)
+    @checks.has_permissions(PermissionLevel.OWNER)
     async def set_delay(self, ctx: commands.Context, wait_duration: int) -> None:
         """Set the number of seconds to wait after a thread is opened to ping."""
         await self.init_task
@@ -76,17 +76,18 @@ class PingManager(commands.Cog):
         await ctx.send(f":+1: Set ping delay to {wait_duration} seconds.")
 
     @ping_delay.command(name="get")
-    @checks.has_permissions(PermissionLevel.REGULAR)
+    @checks.has_permissions(PermissionLevel.SUPPORTER)
     async def get_delay(self, ctx: commands.Context) -> None:
         """Get the number of seconds to wait after a thread is opened to ping."""
         await ctx.send(f"The current ping delay is {self.config.wait_duration} seconds.")
-    
+
     @commands.group(invoke_without_command=True)
-    @checks.has_permissions(PermissionLevel.REGULAR)
+    @checks.has_permissions(PermissionLevel.SUPPORTER)
     async def ping_string(self, ctx: commands.Context) -> None:
         """Manage what message to send in threads without a staff response."""
         await ctx.send_help(ctx.command)
-    
+
+    @checks.has_permissions(PermissionLevel.OWNER)
     @ping_string.command(name="set")
     async def set_ping(self, ctx: commands.Context, ping_string: str) -> None:
         """Set what to send after a waiting for a thread to be responded to."""
@@ -100,19 +101,21 @@ class PingManager(commands.Cog):
         self.config.wait_duration = ping_string
         await ctx.send(f":+1: Set ping string to {ping_string}.", allowed_mentions=None)
 
+    @checks.has_permissions(PermissionLevel.SUPPORTER)
     @ping_string.command(name="get")
     async def get_ping(self, ctx: commands.Context) -> None:
         """Get the number of seconds to wait after a thread is opened to ping."""
         await ctx.send(f"The ping string is {self.config.ping_string}.", allowed_mentions=None)
-    
+
     @commands.group(invoke_without_command=True)
-    @checks.has_permissions(PermissionLevel.REGULAR)
+    @checks.has_permissions(PermissionLevel.SUPPORTER)
     async def ping_ignore_categories(self, ctx: commands.Context) -> None:
         """Manage what categories never get sent pings in them."""
         await ctx.send_help(ctx.command)
-    
-    @ping_ignore_categories.command(name="add")
+
+    @checks.has_permissions(PermissionLevel.OWNER)
     async def set_ping(self, ctx: commands.Context, category_to_ignore: discord.CategoryChannel) -> None:
+    async def set_category(self, ctx: commands.Context, category_to_ignore: discord.CategoryChannel) -> None:
         """Add a category to the list of ignored categories."""
         await self.init_task
 
@@ -128,8 +131,9 @@ class PingManager(commands.Cog):
         )
         await ctx.send(f":+1: Added {category_to_ignore} to the ignored categories list.")
 
+    @checks.has_permissions(PermissionLevel.SUPPORTER)
     @ping_ignore_categories.command(name="get")
-    async def get_ping(self, ctx: commands.Context) -> None:
+    async def get_category(self, ctx: commands.Context) -> None:
         """Get the list of ignored categories."""
         await self.init_task
 
@@ -140,8 +144,9 @@ class PingManager(commands.Cog):
         ignored_categories_str = ', '.join(map(str, self.config.ignored_categories))
         await ctx.send(f"The currently ignored categories are: {ignored_categories_str}.")
     
-    @ping_ignore_categories.command(name="delete", aliases=("remove", "del"))
-    async def del_ping(self, ctx: commands.Context, category_to_ignore: discord.CategoryChannel) -> None:
+    @checks.has_permissions(PermissionLevel.OWNER)
+    @ping_ignore_categories.command(name="delete", aliases=("remove", "del", "rem"))
+    async def del_category(self, ctx: commands.Context, category_to_ignore: discord.CategoryChannel) -> None:
         """Remove a category from the list of ignored categories."""
         await self.init_task
 
