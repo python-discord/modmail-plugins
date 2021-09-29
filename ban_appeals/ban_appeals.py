@@ -1,4 +1,3 @@
-import asyncio
 import typing as t
 
 import discord
@@ -7,7 +6,7 @@ from discord.ext import commands
 from bot import ModmailBot
 from core.models import getLogger
 from core.thread import Thread
-from .utils import get_or_fetch
+from .utils import async_tasks, get_or_fetch
 
 PYDIS_NO_KICK_ROLE_IDS = (
     267627879762755584,  # Owners in PyDis
@@ -34,7 +33,7 @@ class BanAppeals(commands.Cog):
 
         self.appeals_category: t.Optional[discord.CategoryChannel] = None
 
-        self.init_task = asyncio.create_task(self.init_plugin())
+        self.init_task = async_tasks.create_task(self.init_plugin())
 
     async def init_plugin(self) -> None:
         """Initialise the plugin's configuration."""
