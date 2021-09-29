@@ -1,15 +1,15 @@
 import asyncio
 import contextlib
+import typing as t
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
-import typing as t
 
 import discord
 from discord.ext import commands
 
 from bot import ModmailBot
 from core import checks
-from core.models import getLogger, PermissionLevel
+from core.models import PermissionLevel, getLogger
 from core.thread import Thread
 from .utils import async_tasks
 
@@ -18,14 +18,19 @@ log = getLogger(__name__)
 
 @dataclass
 class PingConfig:
+    """Hold the current ping configuration."""
+
     _id: str = field(repr=False, default="ping-delay-config")
 
     ping_string: str = "@here"
     wait_duration: int = 5 * 60
     ignored_categories: list[int] = field(default_factory=list)
 
+
 @dataclass(frozen=True)
 class PingTask:
+    """Data about an individual ping later task."""
+
     when_to_close: str  # ISO datetime stamp
     channel_id: int
 
@@ -139,12 +144,12 @@ class PingManager(commands.Cog):
         await self.init_task
 
         if not self.config.ignored_categories:
-            await ctx.send(f"There are currently no ignored categories.")
+            await ctx.send("There are currently no ignored categories.")
             return
 
         ignored_categories_str = ', '.join(map(str, self.config.ignored_categories))
         await ctx.send(f"The currently ignored categories are: {ignored_categories_str}.")
-    
+
     @checks.has_permissions(PermissionLevel.OWNER)
     @ping_ignore_categories.command(name="delete", aliases=("remove", "del", "rem"))
     async def del_category(self, ctx: commands.Context, category_to_ignore: discord.CategoryChannel) -> None:
@@ -167,7 +172,7 @@ class PingManager(commands.Cog):
         if channel.category_id in self.config.ignored_categories:
             log.info("Not pinging in %s as it's currently in an ignored category", channel)
             return False
-        
+
         first_message_list = await channel.history(limit=1, oldest_first=True).flatten()
         first_message = first_message_list[0]
         thread_author_name = first_message.embeds[0].author.name
@@ -197,7 +202,7 @@ class PingManager(commands.Cog):
                 # Ensure that if the channel gets deleted during processing, the task still gets removed.
                 if await self.should_ping(channel):
                     await channel.send(self.config.ping_string)
-        
+
         self.ping_tasks.remove(ping_task)
         await self.db.find_one_and_update(
             {"_id": "ping-delay-tasks"},
@@ -222,5 +227,6 @@ class PingManager(commands.Cog):
         async_tasks.create_task(self.maybe_ping_later(ping_task), self.bot.loop)
 
 
-def setup(bot: ModmailBot):
+def setup(bot: ModmailBot) -> None:
+    """Add the PingManager plugin."""
     bot.add_cog(PingManager(bot))
