@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
 import typing as t
@@ -191,9 +192,11 @@ class PingManager(commands.Cog):
 
         if not (channel := self.bot.get_channel(ping_task.channel_id)):
             log.info("Channel closed before we could ping.")
-
-        if await self.should_ping(channel):
-            await channel.send(self.config.ping_string)
+        else:
+            with contextlib.suppress(discord.NotFound):
+                # Ensure that if the channel gets deleted during processing, the task still gets removed.
+                if await self.should_ping(channel):
+                    await channel.send(self.config.ping_string)
         
         self.ping_tasks.remove(ping_task)
         await self.db.find_one_and_update(
