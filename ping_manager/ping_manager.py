@@ -126,9 +126,9 @@ class PingManager(commands.Cog):
         self.config.ignored_categories.append(category_to_ignore.id)
         await self.db.find_one_and_update(
             {"_id": "ping-delay-config"},
-            {"$set": {"ignored_categories": self.config.ignored_categories}},
-            upsert=True,
+            {"$addToSet": {"ignored_categories": category_to_ignore.id}}
         )
+
         await ctx.send(f":+1: Added {category_to_ignore} to the ignored categories list.")
 
     @checks.has_permissions(PermissionLevel.SUPPORTER)
@@ -157,8 +157,7 @@ class PingManager(commands.Cog):
         self.config.ignored_categories.remove(category_to_ignore.id)
         await self.db.find_one_and_update(
             {"_id": "ping-delay-config"},
-            {"$set": {"ignored_categories": self.config.ignored_categories}},
-            upsert=True,
+            {"$pull": {"ignored_categories": category_to_ignore.id}},
         )
         await ctx.send(f":+1: Removed {category_to_ignore} from the ignored categories list.")
 
@@ -199,8 +198,7 @@ class PingManager(commands.Cog):
         self.ping_tasks.remove(ping_task)
         await self.db.find_one_and_update(
             {"_id": "ping-delay-tasks"},
-            {"$set": {"ping_tasks": list(map(asdict, self.ping_tasks))}},
-            upsert=True,
+            {"$pull": {"ping_tasks": asdict(ping_task)}},
         )
 
     @commands.Cog.listener()
@@ -215,8 +213,7 @@ class PingManager(commands.Cog):
         self.ping_tasks.append(ping_task)
         await self.db.find_one_and_update(
             {"_id": "ping-delay-tasks"},
-            {"$set": {"ping_tasks": list(map(asdict, self.ping_tasks))}},
-            upsert=True,
+            {"$addToSet": {"ping_tasks": asdict(ping_task)}},
         )
 
         async_tasks.create_task(self.maybe_ping_later(ping_task), self.bot.loop)
