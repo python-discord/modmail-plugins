@@ -30,7 +30,8 @@ class CloseMessage(commands.Cog):
         self.close_command = self.bot.get_command('close')
 
     @commands.command(
-        name="closemessage", aliases=("cm"),
+        name="closemessage",
+        aliases=("cm",),
         usage="[after]",
         help=f"Close the current thread with the message `{CLOSING_MESSAGE}`"
     )
