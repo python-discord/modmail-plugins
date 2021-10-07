@@ -31,7 +31,7 @@ class PingConfig:
 class PingTask:
     """Data about an individual ping later task."""
 
-    when_to_close: str  # ISO datetime stamp
+    when_to_ping: str  # ISO datetime stamp
     channel_id: int
 
 
@@ -187,7 +187,7 @@ class PingManager(commands.Cog):
 
     async def maybe_ping_later(self, ping_task: PingTask) -> None:
         """Pings conditionally after waiting the configured wait duration."""
-        when_to_ping = datetime.fromisoformat(ping_task.when_to_close)
+        when_to_ping = datetime.fromisoformat(ping_task.when_to_ping)
         now = datetime.utcnow()
         seconds_to_sleep = (when_to_ping - now).total_seconds()
         if seconds_to_sleep < 0:
@@ -215,7 +215,7 @@ class PingManager(commands.Cog):
         await self.init_task
         now = datetime.utcnow()
         ping_task = PingTask(
-            when_to_close=(now + timedelta(seconds=self.config.wait_duration)).isoformat(),
+            when_to_ping=(now + timedelta(seconds=self.config.wait_duration)).isoformat(),
             channel_id=thread.channel.id
         )
         self.ping_tasks.append(ping_task)
