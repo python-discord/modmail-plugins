@@ -14,7 +14,9 @@ def create_task(
     """
     Wrapper for creating asyncio `Task`s which logs exceptions raised in the task.
 
-    If the loop kwarg is provided, the task is created from that event loop, otherwise the running loop is used.
+    If the loop kwarg is provided, the task is created from that event loop,
+    the loop does not need to be running to add a task to it.
+    Otherwise the running loop is used.
     """
     if event_loop is not None:
         task = event_loop.create_task(coro)
