@@ -42,9 +42,9 @@ class PingManager(commands.Cog):
 
         self.config: t.Optional[PingConfig] = None
         self.ping_tasks: list[PingTask] = None
-        self.db = bot.plugin_db.get_partition(self)
+        self.db = bot.api.get_plugin_partition(self)
 
-        self.init_task = async_tasks.create_task(self.init_plugin())
+        self.init_task = async_tasks.create_task(self.init_plugin(), self.bot.loop)
 
     async def init_plugin(self) -> None:
         """Fetch the current config from the db."""
@@ -58,7 +58,7 @@ class PingManager(commands.Cog):
         log.info("Loaded config: %s", self.config)
         log.info("Loaded %d ping tasks", len(self.ping_tasks))
         for task in self.ping_tasks:
-            async_tasks.create_task(self.maybe_ping_later(task))
+            async_tasks.create_task(self.maybe_ping_later(task), self.bot.loop)
 
     @commands.group(invoke_without_command=True)
     @checks.has_permissions(PermissionLevel.SUPPORTER)
