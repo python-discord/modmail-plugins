@@ -33,7 +33,7 @@ class BanAppeals(commands.Cog):
 
         self.db = self.bot.plugin_db.get_partition(self)
 
-        self.init_task = async_tasks.create_task(self.init_plugin())
+        self.init_task = async_tasks.create_task(self.init_plugin(), self.bot.loop)
 
     async def init_plugin(self) -> None:
         """Initialise the plugin's configuration."""
