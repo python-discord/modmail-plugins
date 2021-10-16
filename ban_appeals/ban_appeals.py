@@ -113,6 +113,7 @@ class BanAppeals(commands.Cog):
     @appeal_category_management.command(name="get")
     async def get_categories(self, ctx: commands.Context) -> None:
         """Get the list of appeal categories of commands for managing appeal categories."""
+        await self.init_task
         category_str = ", ".join(map(str, self.appeal_categories)) if self.appeal_categories else "None"
 
         await ctx.send(f"Currently configured appeal categories are: {category_str}")
