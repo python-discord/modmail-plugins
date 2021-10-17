@@ -15,6 +15,7 @@ class Tagging(commands.Cog):
 
     @checks.has_permissions(PermissionLevel.SUPPORTER)
     @commands.command()
+    @checks.thread_only()
     async def tag(self, ctx: commands.Context, tag: Optional[str]) -> None:
         """
         Append a tag at the beginning of the channel name.
