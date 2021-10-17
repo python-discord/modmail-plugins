@@ -12,6 +12,8 @@ from core.models import PermissionLevel, getLogger
 from core.thread import Thread
 from .utils import async_tasks
 
+# Remove view perms from this role while pining, so only on-duty mods get the ping.
+MOD_TEAM_ROLE_ID = 267629731250176001
 log = getLogger(__name__)
 
 
@@ -40,6 +42,7 @@ class PingManager(commands.Cog):
     def __init__(self, bot: ModmailBot):
         self.bot = bot
 
+        self.mod_team_role: discord.Role = None
         self.config: t.Optional[PingConfig] = None
         self.ping_tasks: list[PingTask] = None
         self.db = bot.api.get_plugin_partition(self)
@@ -51,6 +54,8 @@ class PingManager(commands.Cog):
         db_config = await self.db.find_one({"_id": "ping-delay-config"})
         db_config = db_config or {}
         self.config = PingConfig(**db_config)
+
+        self.mod_team_role = self.bot.guild.get_role(MOD_TEAM_ROLE_ID)
 
         db_ping_tasks = await self.db.find_one({"_id": "ping-delay-tasks"})
         db_ping_tasks = db_ping_tasks or {}
@@ -198,9 +203,13 @@ class PingManager(commands.Cog):
         if not (channel := self.bot.get_channel(ping_task.channel_id)):
             log.info("Channel closed before we could ping.")
         else:
+            channel: discord.TextChannel
             try:
                 if await self.should_ping(channel):
+                    # Remove overwrites for off-duty mods, ping, then add back.
+                    await channel.set_permissions(self.mod_team_role, overwrite=None)
                     await channel.send(self.config.ping_string)
+                    await channel.edit(sync_permissions=True)
             except discord.NotFound:
                 # Fail silently if the channel gets deleted during processing.
                 pass
