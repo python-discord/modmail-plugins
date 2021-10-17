@@ -53,6 +53,7 @@ class PingManager(commands.Cog):
         self.config = PingConfig(**db_config)
 
         db_ping_tasks = await self.db.find_one({"_id": "ping-delay-tasks"})
+        db_ping_tasks = db_ping_tasks or {}
         self.ping_tasks = [PingTask(**task) for task in db_ping_tasks.get("ping_tasks", [])]
 
         log.info("Loaded config: %s", self.config)
