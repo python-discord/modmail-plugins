@@ -104,7 +104,7 @@ class PingManager(commands.Cog):
             {"$set": {"ping_string": ping_string}},
             upsert=True,
         )
-        self.config.wait_duration = ping_string
+        self.config.ping_string = ping_string
         await ctx.send(f":+1: Set ping string to {ping_string}.", allowed_mentions=None)
 
     @checks.has_permissions(PermissionLevel.SUPPORTER)
