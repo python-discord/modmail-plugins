@@ -24,7 +24,8 @@ class PingConfig:
     _id: str = field(repr=False, default="ping-delay-config")
 
     ping_string: str = "@here"
-    wait_duration: int = 5 * 60
+    initial_wait_duration: int = 5 * 60
+    delayed_wait_duration: int = 10 * 60
     ignored_categories: list[int] = field(default_factory=list)
 
 
@@ -34,6 +35,7 @@ class PingTask:
 
     when_to_ping: str  # ISO datetime stamp
     channel_id: int
+    already_delayed: bool = False  # Whether the PingTask has been delayed already
 
 
 class PingManager(commands.Cog):
@@ -72,25 +74,48 @@ class PingManager(commands.Cog):
         """Manage when to ping in threads without a staff response."""
         await ctx.send_help(ctx.command)
 
-    @ping_delay.command(name="set")
+    @ping_delay.group(name="set", invoke_without_command=True)
     @checks.has_permissions(PermissionLevel.OWNER)
-    async def set_delay(self, ctx: commands.Context, wait_duration: int) -> None:
+    async def set_delay(self, ctx: commands.Context) -> None:
+        """Set the times when to ping in threads without a staff response."""
+        await ctx.send_help(ctx.command)
+
+    @set_delay.command(name="initial")
+    @checks.has_permissions(PermissionLevel.OWNER)
+    async def set_initial(self, ctx: commands.Context, wait_duration: int) -> None:
         """Set the number of seconds to wait after a thread is opened to ping."""
         await self.init_task
 
         await self.db.find_one_and_update(
             {"_id": "ping-delay-config"},
-            {"$set": {"wait_duration": wait_duration}},
+            {"$set": {"initial_wait_duration": wait_duration}},
             upsert=True,
         )
-        self.config.wait_duration = wait_duration
-        await ctx.send(f":+1: Set ping delay to {wait_duration} seconds.")
+        self.config.initial_wait_duration = wait_duration
+        await ctx.send(f":+1: Set initial ping delay to {wait_duration} seconds.")
+
+    @set_delay.command(name="delayed")
+    @checks.has_permissions(PermissionLevel.OWNER)
+    async def set_delayed(self, ctx: commands.Context, wait_duration: int) -> None:
+        """Set the number of seconds to wait after a thread is opened to ping."""
+        await self.init_task
+
+        await self.db.find_one_and_update(
+            {"_id": "ping-delay-config"},
+            {"$set": {"delayed_wait_duration": wait_duration}},
+            upsert=True,
+        )
+        self.config.delayed_wait_duration = wait_duration
+        await ctx.send(f":+1: Set the delayed ping delay to {wait_duration} seconds.")
 
     @ping_delay.command(name="get")
     @checks.has_permissions(PermissionLevel.SUPPORTER)
     async def get_delay(self, ctx: commands.Context) -> None:
         """Get the number of seconds to wait after a thread is opened to ping."""
-        await ctx.send(f"The current ping delay is {self.config.wait_duration} seconds.")
+        await ctx.send(
+            f"The current ping delay is initial={self.config.initial_wait_duration}s "
+            f"delayed={self.config.delayed_wait_duration}s."
+        )
 
     @commands.group(invoke_without_command=True)
     @checks.has_permissions(PermissionLevel.SUPPORTER)
@@ -137,7 +162,8 @@ class PingManager(commands.Cog):
         self.config.ignored_categories.append(category_to_ignore.id)
         await self.db.find_one_and_update(
             {"_id": "ping-delay-config"},
-            {"$addToSet": {"ignored_categories": category_to_ignore.id}}
+            {"$addToSet": {"ignored_categories": category_to_ignore.id}},
+            upsert=True,
         )
 
         await ctx.send(f":+1: Added {category_to_ignore} to the ignored categories list.")
@@ -169,25 +195,64 @@ class PingManager(commands.Cog):
         await self.db.find_one_and_update(
             {"_id": "ping-delay-config"},
             {"$pull": {"ignored_categories": category_to_ignore.id}},
+            upsert=True,
         )
         await ctx.send(f":+1: Removed {category_to_ignore} from the ignored categories list.")
 
-    async def should_ping(self, channel: discord.TextChannel) -> bool:
+    async def add_ping_task(self, task: PingTask) -> None:
+        """Adds a ping task to the internal cache and to the db."""
+        self.ping_tasks.append(task)
+        await self.db.find_one_and_update(
+            {"_id": "ping-delay-tasks"},
+            {"$addToSet": {"ping_tasks": asdict(task)}},
+            upsert=True,
+        )
+
+        async_tasks.create_task(self.maybe_ping_later(task), self.bot.loop)
+
+    async def remove_ping_task(self, task: PingTask) -> None:
+        """Removes a ping task to the internal cache and to the db."""
+        self.ping_tasks.remove(task)
+        await self.db.find_one_and_update(
+            {"_id": "ping-delay-tasks"},
+            {"$pull": {"ping_tasks": asdict(task)}},
+            upsert=True,
+        )
+
+    async def should_ping(self, channel: discord.TextChannel, already_delayed: bool) -> bool:
         """Check if a ping should be sent to a thread depending on current config."""
         if channel.category_id in self.config.ignored_categories:
             log.info("Not pinging in %s as it's currently in an ignored category", channel)
             return False
 
-        first_message_list = await channel.history(limit=1, oldest_first=True).flatten()
-        first_message = first_message_list[0]
-        thread_author_name = first_message.embeds[0].author.name
-        async for message in channel.history(oldest_first=True):
-            if not message.embeds:
-                log.info("Not pinging in %s as a mod has sent an internal message in the thread.", channel)
-                return False
-            if not message.embeds[0].author.name == thread_author_name:
+        has_internal_message = False
+        logs = await self.bot.api.get_log(channel.id)
+        for message in reversed(logs["messages"]):
+            # Look through logged messages in reverse order since replies are likely to be last.
+            if message["author"]["mod"] and message["type"] == "thread_message":
                 log.info("Not pinging in %s as a mod has sent a reply in the thread.", channel)
                 return False
+            if message["author"]["mod"]:
+                has_internal_message = True
+
+        # Falling out of the above loop means there are no thread replies from mods.
+        if has_internal_message and not already_delayed:
+            # If there was an internal message, and the ping hasn't already been delayed,
+            # delay a ping to be sent later.
+            log.info(
+                "Delaying pinging in %s by %d seconds as a mod has sent an internal message in the thread.",
+                channel,
+                self.config.delayed_wait_duration
+            )
+
+            ping_task = PingTask(
+                when_to_ping=(datetime.utcnow() + timedelta(seconds=self.config.delayed_wait_duration)).isoformat(),
+                channel_id=channel.id,
+                already_delayed=True
+            )
+            await self.add_ping_task(ping_task)
+            return False
+
         return True
 
     async def maybe_ping_later(self, ping_task: PingTask) -> None:
@@ -205,21 +270,20 @@ class PingManager(commands.Cog):
         else:
             channel: discord.TextChannel
             try:
-                if await self.should_ping(channel):
+                if await self.should_ping(channel, ping_task.already_delayed):
                     # Remove overwrites for off-duty mods, ping, then add back.
                     await channel.set_permissions(self.mod_team_role, overwrite=None)
-                    await channel.send(self.config.ping_string)
+                    await channel.send(
+                        f"{self.config.ping_string}"
+                        f"{' no one has replied yet!' if ping_task.already_delayed else ''}"
+                    )
                     await channel.edit(sync_permissions=True)
             except discord.NotFound:
                 # Fail silently if the channel gets deleted during processing.
                 pass
             finally:
                 # Ensure the task always gets removed.
-                self.ping_tasks.remove(ping_task)
-                await self.db.find_one_and_update(
-                    {"_id": "ping-delay-tasks"},
-                    {"$pull": {"ping_tasks": asdict(ping_task)}},
-                )
+                await self.remove_ping_task(ping_task)
 
     @commands.Cog.listener()
     async def on_thread_ready(self, thread: Thread, *args) -> None:
@@ -227,16 +291,10 @@ class PingManager(commands.Cog):
         await self.init_task
         now = datetime.utcnow()
         ping_task = PingTask(
-            when_to_ping=(now + timedelta(seconds=self.config.wait_duration)).isoformat(),
+            when_to_ping=(now + timedelta(seconds=self.config.initial_wait_duration)).isoformat(),
             channel_id=thread.channel.id
         )
-        self.ping_tasks.append(ping_task)
-        await self.db.find_one_and_update(
-            {"_id": "ping-delay-tasks"},
-            {"$addToSet": {"ping_tasks": asdict(ping_task)}},
-        )
-
-        async_tasks.create_task(self.maybe_ping_later(ping_task), self.bot.loop)
+        await self.add_ping_task(ping_task)
 
 
 def setup(bot: ModmailBot) -> None:
