@@ -16,6 +16,12 @@ PYDIS_NO_KICK_ROLE_IDS = (
 APPEAL_NO_KICK_ROLE_ID = 890270873813139507  # Staff in appeals server
 APPEAL_GUILD_ID = 890261951979061298
 
+BAN_APPEAL_MESSAGE = (
+    "Please be patient, it may take a while for us to respond to ban appeals.\n\n"
+    "To ensure we can respond to your appeal, make sure you keep your DMs "
+    "open and do not block the bot."
+)
+
 log = getLogger(__name__)
 
 
@@ -169,10 +175,28 @@ class BanAppeals(commands.Cog):
 
         if await self._is_banned_pydis(thread.recipient):
             category = await self.get_useable_appeal_category()
-            if not category:
+            if category:
+                await thread.channel.edit(category=category, sync_permissions=True)
+            else:
                 await thread.channel.send("ERROR! Could not move thread to an appeal category as they're all full!")
-                return
-            await thread.channel.edit(category=category, sync_permissions=True)
+
+            embed = discord.Embed(
+                colour=self.bot.mod_color,
+                description=BAN_APPEAL_MESSAGE,
+                timestamp=thread.channel.created_at,
+            )
+
+            recipient_thread_close = self.bot.config.get("recipient_thread_close")
+
+            if recipient_thread_close:
+                footer = self.bot.config["thread_self_closable_creation_footer"]
+            else:
+                footer = self.bot.config["thread_creation_footer"]
+
+            embed.set_footer(text=footer, icon_url=self.bot.guild.icon_url)
+            embed.title = "Ban appeal"
+
+            await thread.recipient.send(embed=embed)
 
 
 def setup(bot: ModmailBot) -> None:
