@@ -1,3 +1,5 @@
+import typing as t
+
 from discord.ext import commands
 
 from bot import ModmailBot
@@ -38,10 +40,11 @@ class CloseMessage(commands.Cog):
     )
     @checks.has_permissions(PermissionLevel.SUPPORTER)
     @checks.thread_only()
-    async def close_message(self, ctx: commands.Context, *, after: str = '15m') -> commands.Command:
+    async def close_message(self, ctx: commands.Context, *, after: t.Union[int, str] = '15m') -> commands.Command:
         """Close the thread after the given duration with the set message."""
-        if after.isdigit():
+        if isinstance(after, int):
             after = f'{after}m'
+
         after = await UserFriendlyTimeOnly().convert(ctx, after)
         return await self.close_command(ctx, after=after)
 
