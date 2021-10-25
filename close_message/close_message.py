@@ -29,11 +29,12 @@ class CloseMessage(commands.Cog):
         self.bot = bot
         self.close_command = self.bot.get_command('close')
 
-    @commands.command(
+    @commands.group(
         name="closemessage",
         aliases=("cm",),
         usage="[after]",
-        help=f"Close the current thread with the message `{CLOSING_MESSAGE}`"
+        help=f"Close the current thread with the message `{CLOSING_MESSAGE}`",
+        invoke_without_command=True
     )
     @checks.has_permissions(PermissionLevel.SUPPORTER)
     @checks.thread_only()
@@ -43,6 +44,13 @@ class CloseMessage(commands.Cog):
             after = f'{after}m'
         after = await UserFriendlyTimeOnly().convert(ctx, after)
         return await self.close_command(ctx, after=after)
+
+    @close_message.command(aliases=('msg',))
+    @checks.has_permissions(PermissionLevel.SUPPORTER)
+    @checks.thread_only()
+    async def message(self, ctx: commands.Context) -> None:
+        """Send the closing message."""
+        await ctx.send(f'> {CLOSING_MESSAGE}')
 
 
 def setup(bot: ModmailBot) -> None:
