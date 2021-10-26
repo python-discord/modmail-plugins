@@ -1,5 +1,6 @@
 import typing as t
 
+import discord
 from discord.ext import commands
 
 from bot import ModmailBot
@@ -24,7 +25,7 @@ class UserFriendlyDuration(time.UserFriendlyTime):
     def __init__(self, *, default_close_duration: t.Optional[str] = None) -> None:
         self.default_close_duration = default_close_duration
 
-    async def convert(self, ctx: commands.Context, argument: str) -> str:
+    async def convert(self, ctx: commands.Context, argument: str) -> "UserFriendlyDuration":
         """
         Parse the time duration if provided and prefix any message.
 
@@ -56,7 +57,7 @@ class UserFriendlyDuration(time.UserFriendlyTime):
 class CloseMessage(commands.Cog):
     """A plugin that adds a close command with a default close message."""
 
-    def __init__(self, bot: ModmailBot):
+    def __init__(self, bot: ModmailBot) -> None:
         self.bot = bot
         self.close_command = self.bot.get_command('close')
 
@@ -73,7 +74,7 @@ class CloseMessage(commands.Cog):
         ctx: commands.Context,
         *,
         after: str = ''  # noqa: F722
-    ) -> commands.Command:
+    ) -> t.Optional[discord.Message]:
         """
         Close the current thread with a message.
 
