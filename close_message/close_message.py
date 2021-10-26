@@ -7,10 +7,10 @@ from core import checks
 from core import time
 from core.models import PermissionLevel
 
-CLOSING_MESSAGE = "Feel free to open a new thread if you need anything else."
+DEFAULT_CLOSE_MESSAGE = "Feel free to open a new thread if you need anything else."
 
 
-class UserFriendlyTimeOnly(time.UserFriendlyTime):
+class UserFriendlyDuration(time.UserFriendlyTime):
     """
     A converter which parses user-friendly time durations.
 
@@ -46,9 +46,9 @@ class UserFriendlyTimeOnly(time.UserFriendlyTime):
 
         if self.arg:
             add_period = not self.arg.endswith((".", "!", "?"))
-            self.arg = self.arg + (". " if add_period else " ") + CLOSING_MESSAGE
+            self.arg = self.arg + (". " if add_period else " ") + DEFAULT_CLOSE_MESSAGE
         else:
-            self.arg = CLOSING_MESSAGE
+            self.arg = DEFAULT_CLOSE_MESSAGE
 
         return self
 
@@ -93,15 +93,15 @@ class CloseMessage(commands.Cog):
         # We're doing the conversion here to make the argument optional
         # while still passing the converted argument instead of an
         # empty string to the close command.
-        after = await UserFriendlyTimeOnly(default_close_duration='15m').convert(ctx, after)
+        after = await UserFriendlyDuration(default_close_duration='15m').convert(ctx, after)
         return await self.close_command(ctx, after=after)
 
     @close_message.command(aliases=('msg',))
     @checks.has_permissions(PermissionLevel.SUPPORTER)
     @checks.thread_only()
     async def message(self, ctx: commands.Context) -> None:
-        """Send the closing message."""
-        await ctx.send(f'> {CLOSING_MESSAGE}')
+        """Send the default close message."""
+        await ctx.send(f'> {DEFAULT_CLOSE_MESSAGE}')
 
 
 def setup(bot: ModmailBot) -> None:
