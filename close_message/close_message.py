@@ -73,7 +73,7 @@ class CloseMessage(commands.Cog):
         self,
         ctx: commands.Context,
         *,
-        after: str = ''  # noqa: F722
+        after: str = ''
     ) -> t.Optional[discord.Message]:
         """
         Close the current thread with a message.
