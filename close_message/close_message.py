@@ -97,7 +97,7 @@ class CloseMessage(commands.Cog):
         after = await UserFriendlyDuration(default_close_duration='15m').convert(ctx, after)
         return await self.close_command(ctx, after=after)
 
-    @close_message.command(aliases=('msg',))
+    @close_message.command(aliases=('msg', 'm'))
     @checks.has_permissions(PermissionLevel.SUPPORTER)
     @checks.thread_only()
     async def message(self, ctx: commands.Context) -> None:
