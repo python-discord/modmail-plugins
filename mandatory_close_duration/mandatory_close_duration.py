@@ -1,67 +1,84 @@
+import asyncio
+
+import discord
 from discord.ext import commands
 
 from bot import ModmailBot
 from core import time
 
 
-class StrictUserFriendlyDuration(time.UserFriendlyTime):
+async def close_after_confirmation(ctx: commands.Context, converted_arg: time.UserFriendlyTime) -> None:
     """
-    A converter which parses user-friendly time durations.
+    Send a message and allow users to react to it to close the thread.
 
-    Since this converter is meant for parsing close messages while
-    closing threads, both custom close messages and time durations are
-    parsed.
-
-    Unlike the parent class, a time duration must be provided when
-    a custom close message is provided.
+    The reaction times out after 5 minutes.
     """
+    unicode_reaction = '\N{WHITE HEAVY CHECK MARK}'
+    warning_message = ("\N{WARNING SIGN} A time duration wasn't provided, reacting to this message will close"
+                       " this thread instantly with the provided custom close message.")
 
-    MODIFIERS = {'silently', 'silent', 'cancel'}
+    message = await ctx.send(warning_message)
+    await message.add_reaction(unicode_reaction)
 
-    async def convert(self, ctx: commands.Context, argument: str) -> "StrictUserFriendlyDuration":
-        """
-        Parse the provided time duration along with any close message.
+    def checkmark_press_check(reaction: discord.Reaction, user: discord.User) -> bool:
+        is_right_reaction = (
+            user != ctx.bot.user
+            and reaction.message.id == message.id
+            and str(reaction.emoji) == unicode_reaction
+        )
 
-        Fail if a custom close message is provided without a time
-        duration.
-        """
-        await super().convert(ctx, argument)
+        return is_right_reaction
 
-        argument_passed = bool(argument)
-        not_a_modifier = argument not in self.MODIFIERS
-        if argument_passed and not_a_modifier and self.arg == argument:
-            # Fail since only a close message was provided.
-            raise commands.BadArgument("A time duration must be provided when closing with a custom message.")
-
-        return self
+    try:
+        await ctx.bot.wait_for('reaction_add', check=checkmark_press_check, timeout=5 * 60)
+    except asyncio.TimeoutError:
+        await message.edit(content=message.content+'\n\n**Timed out.**')
+        await message.clear_reactions()
+    else:
+        await original_close_command(ctx, after=converted_arg)
 
 
-ADDED_HELP_TEXT = '\n\n*Note: Providing a time duration is necessary when closing with a custom message.*'
+async def safe_close(
+    self: time.UserFriendlyTime,
+    ctx: commands.Context,
+    *,
+    after: time.UserFriendlyTime = None
+) -> None:
+    """
+    Close the current thread.
+
+    Unlike the original close command, confirmation is awaited when
+    a time duration isn't provided but a custom close message is.
+    """
+    modifiers = {'silently', 'silent', 'cancel'}
+
+    argument_passed = bool(after)
+    not_a_modifier = after.arg not in modifiers
+
+    if argument_passed and not_a_modifier and after.arg == after.raw:
+        # Ask for confirmation since only a close message was provided.
+        await close_after_confirmation(ctx, after)
+    else:
+        await original_close_command(ctx, after=after)
 
 
 def setup(bot: ModmailBot) -> None:
     """
-    Monkey patch the close command's callback.
+    Monkey patch the close command's callback to safe_close.
 
-    This makes it use the StrictUserFriendlyTime converter and updates
-    the help text to reflect the new behaviour.
+    The help text is also updated to reflect the new behaviour.
     """
-    global previous_converter
+    global original_close_command
 
     command = bot.get_command('close')
+    original_close_command = command.copy()
+    original_close_command.cog = command.cog
 
-    previous_converter = command.callback.__annotations__['after']
-    command.callback.__annotations__['after'] = StrictUserFriendlyDuration
-    command.callback = command.callback
-
-    command.help += ADDED_HELP_TEXT
+    command.callback = safe_close
+    command.help += '\n\n*Note: A time duration should be provided when closing with a custom message.*'
 
 
 def teardown(bot: ModmailBot) -> None:
-    """Undo changes to the close command."""
-    command = bot.get_command('close')
-
-    command.callback.__annotations__['after'] = previous_converter
-    command.callback = command.callback
-
-    command.help = command.help.remove_suffix(ADDED_HELP_TEXT)
+    """Restore the original close command."""
+    bot.remove_command('close')
+    bot.add_command(original_close_command)
