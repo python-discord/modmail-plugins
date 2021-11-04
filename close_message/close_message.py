@@ -33,6 +33,9 @@ class UserFriendlyDuration(time.UserFriendlyTime):
         The default close message is appended if a custom close
         message is provided.
 
+        Phrases which are removed to parse time durations correctly
+        are restored if a time duration wasn't provided.
+
         If only an integer is passed in, it is treated as the number
         of minutes to close after.
         """
@@ -41,16 +44,37 @@ class UserFriendlyDuration(time.UserFriendlyTime):
 
         await super().convert(ctx, argument)
 
-        if self.default_close_duration and self.arg == argument:
-            # the user didn't enter a time or duration
-            await super().convert(ctx, f'{self.default_close_duration} {argument}')
+        # These changes are always made to the argument by the super
+        # class so they need to be replicated before the raw argument
+        # is compared with the parsed message.
+        argument_without_phrases = argument.removeprefix('in ').removesuffix(' from now').strip()
 
-        if self.arg:
-            add_period = not self.arg.endswith((".", "!", "?"))
-            self.arg = self.arg + (". " if add_period else " ") + DEFAULT_CLOSE_MESSAGE
+        if self.default_close_duration and self.arg == argument_without_phrases:
+            # A time duration hasn't been provided. The original
+            # argument is passed instead of the one without phrases to
+            # allow the phrases to be a part of the close message.
+            new_time_duration = self.default_close_duration
+            message = argument
         else:
-            self.arg = DEFAULT_CLOSE_MESSAGE
+            # Extract the portion of the argument that constitued the
+            # time duration.
+            if argument.endswith(self.arg):
+                new_time_duration = argument.removesuffix(self.arg)
+            elif argument_without_phrases.endswith(self.arg):
+                new_time_duration = argument_without_phrases.removesuffix(self.arg)
+            elif argument_without_phrases.startswith(self.arg):
+                new_time_duration = argument_without_phrases.removeprefix(self.arg)
 
+            new_time_duration = new_time_duration.strip()
+            message = self.arg
+
+        if message:
+            add_period = not message.endswith((".", "!", "?"))
+            new_close_message = message + (". " if add_period else " ") + DEFAULT_CLOSE_MESSAGE
+        else:
+            new_close_message = DEFAULT_CLOSE_MESSAGE
+
+        await super().convert(ctx, f'{new_time_duration} {new_close_message}')
         return self
 
 
