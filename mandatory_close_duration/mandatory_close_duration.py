@@ -52,10 +52,20 @@ async def safe_close(
     """
     modifiers = {'silently', 'silent', 'cancel'}
 
-    argument_passed = bool(after)
-    not_a_modifier = after.arg not in modifiers
+    argument_passed = after is not None
 
-    if argument_passed and not_a_modifier and after.arg == after.raw:
+    if argument_passed:
+        not_a_modifier = after.arg not in modifiers
+
+        # These changes are always made to the argument by the super
+        # class so they need to be replicated before the raw argument
+        # is compared with the parsed message.
+        stripped_argument = after.raw.strip()
+        argument_without_phrases = stripped_argument.removeprefix('in ').removesuffix(' from now')
+
+        no_duration = after.arg == argument_without_phrases
+
+    if argument_passed and not_a_modifier and no_duration:
         # Ask for confirmation since only a close message was provided.
         await close_after_confirmation(ctx, after)
     else:
