@@ -32,8 +32,12 @@ async def close_after_confirmation(ctx: commands.Context, converted_arg: time.Us
     try:
         await ctx.bot.wait_for('reaction_add', check=checkmark_press_check, timeout=5 * 60)
     except asyncio.TimeoutError:
-        await message.edit(content=message.content+'\n\n**Timed out.**')
-        await message.clear_reactions()
+        try:
+            await message.edit(content=message.content+'\n\n**Timed out.**')
+            await message.clear_reactions()
+        except discord.NotFound:
+            # The thread might have been closed by now.
+            pass
     else:
         await original_close_command(ctx, after=converted_arg)
 
