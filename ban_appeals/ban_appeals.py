@@ -221,6 +221,8 @@ class BanAppeals(commands.Cog):
 
         An embed is sent in the thread once they leave.
         """
+        await self.init_task
+
         if not member.guild == self.appeals_guild:
             return
 
