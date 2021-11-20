@@ -198,6 +198,23 @@ class BanAppeals(commands.Cog):
 
             await thread.recipient.send(embed=embed)
 
+    @commands.Cog.listener()
+    async def on_member_remove(self, member: discord.Member) -> None:
+        """
+        Notify if a member who is appealing leaves the appeals guild.
+
+        An embed is sent in the thread once they leave.
+        """
+        if not member.guild == self.appeals_guild:
+            return
+
+        thread = await self.bot.threads.find(recipient=member)
+        if not thread:
+            return
+
+        embed = discord.Embed(description="The recipient has left the appeals server.", color=self.bot.error_color)
+        await thread.channel.send(embed=embed)
+
 
 def setup(bot: ModmailBot) -> None:
     """Add the BanAppeals cog."""
