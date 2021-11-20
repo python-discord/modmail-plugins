@@ -93,7 +93,15 @@ class BanAppeals(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member) -> None:
-        """Kick members who join appeal server, but are in main server."""
+        """
+        Kick members who cannot appeal and notify for rejoins.
+
+        Members who join the appeal server but are in the main server
+        are kicked.
+
+        If a member rejoins while appealing, it's notified in their
+        thread.
+        """
         await self.init_task
 
         if member.guild == self.pydis_guild:
@@ -107,7 +115,15 @@ class BanAppeals(commands.Cog):
         elif member.guild == self.appeals_guild:
             # Join event from the appeals server
             # Kick them if they are not banned and not part of the bypass list
+            # otherwise notify that they rejoined while appealing.
             await self._maybe_kick_user(member)
+
+            thread = await self.bot.threads.find(recipient=member)
+            if not thread:
+                return
+
+            embed = discord.Embed(description="The recipient has joined the appeals server.", color=self.bot.mod_color)
+            await thread.channel.send(embed=embed)
 
     @checks.has_permissions(PermissionLevel.SUPPORTER)
     @commands.group(invoke_without_command=True, aliases=("appeal_category",))
