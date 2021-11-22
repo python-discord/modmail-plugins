@@ -1,4 +1,6 @@
+import asyncio
 import typing as t
+import weakref
 
 import discord
 from discord.ext import commands
@@ -41,6 +43,9 @@ class BanAppeals(commands.Cog):
 
         self.init_task = async_tasks.create_task(self.init_plugin(), self.bot.loop)
 
+        self.user_locks: weakref.WeakValueDictionary[int, asyncio.Lock] = weakref.WeakValueDictionary()
+        self.ignore_next_remove_event: set[int] = set()
+
     async def init_plugin(self) -> None:
         """Initialise the plugin's configuration."""
         self.pydis_guild = self.bot.guild
@@ -61,9 +66,15 @@ class BanAppeals(commands.Cog):
             await self._maybe_kick_user(member)
 
     async def _maybe_kick_user(self, member: discord.Member) -> None:
-        """Kick members joining appeals if they are not banned, and not part of the bypass list."""
+        """
+        Kick members joining appeals if they are not banned, and not part of the bypass list.
+
+        If they have a ModMail thread open, the kick is notified.
+
+        Return a boolean for whether the member wes kicked.
+        """
         if member.bot:
-            return
+            return False
 
         if not await self._is_banned_pydis(member):
             pydis_member = await get_or_fetch.get_or_fetch_member(self.pydis_guild, member.id)
@@ -72,7 +83,7 @@ class BanAppeals(commands.Cog):
                 or APPEAL_NO_KICK_ROLE_ID in (role.id for role in member.roles)
             ):
                 log.info("Not kicking %s (%d) as they have a bypass role", member, member.id)
-                return
+                return False
             try:
                 await member.kick(reason="Not banned in main server")
             except discord.Forbidden:
@@ -83,6 +94,21 @@ class BanAppeals(commands.Cog):
                 )
                 log.info("Kicked %s (%d).", member, member.id)
 
+                thread = await self.bot.threads.find(recipient=member)
+                if not thread:
+                    return
+
+                embed = discord.Embed(
+                    description="The recipient joined the appeals server and has been autokicked.",
+                    color=self.bot.error_color
+                )
+                await thread.channel.send(embed=embed)
+                self.ignore_next_remove_event.add(member.id)
+
+                return True
+
+        return False
+
     async def _is_banned_pydis(self, member: discord.Member) -> bool:
         """See if the given member is banned in PyDis."""
         try:
@@ -91,8 +117,7 @@ class BanAppeals(commands.Cog):
             return False
         return True
 
-    @commands.Cog.listener()
-    async def on_member_join(self, member: discord.Member) -> None:
+    async def _handle_join(self, member: discord.Member) -> None:
         """
         Kick members who cannot appeal and notify for rejoins.
 
@@ -112,18 +137,88 @@ class BanAppeals(commands.Cog):
                 await appeals_member.kick(reason="Rejoined PyDis")
                 await self.logs_channel.send(f"Kicked {member} ({member.id}) as they rejoined PyDis.")
                 log.info("Kicked %s (%d) as they rejoined PyDis.", member, member.id)
+
+                thread = await self.bot.threads.find(recipient=member)
+                if not thread:
+                    return
+
+                embed = discord.Embed(
+                    description="The recipient has been kicked from the appeals server.",
+                    color=self.bot.error_color
+                )
+                await thread.channel.send(embed=embed)
+                self.ignore_next_remove_event.add(member.id)
         elif member.guild == self.appeals_guild:
             # Join event from the appeals server
             # Kick them if they are not banned and not part of the bypass list
             # otherwise notify that they rejoined while appealing.
-            await self._maybe_kick_user(member)
+            has_been_kicked = await self._maybe_kick_user(member)
+            if has_been_kicked:
+                return
 
             thread = await self.bot.threads.find(recipient=member)
             if not thread:
                 return
 
-            embed = discord.Embed(description="The recipient has joined the appeals server.", color=self.bot.mod_color)
+            embed = discord.Embed(
+                description="The recipient has joined the appeals server.",
+                color=self.bot.mod_color
+            )
             await thread.channel.send(embed=embed)
+
+    async def _handle_remove(self, member: discord.Member) -> None:
+        """
+        Notify if a member who is appealing leaves the appeals guild.
+
+        If the member's id is in the ignore set, then the current
+        event is skipped.
+
+        An embed is sent in the thread once they leave.
+        """
+        await self.init_task
+
+        if not member.guild == self.appeals_guild:
+            return
+
+        try:
+            self.ignore_next_remove_event.remove(member.id)
+        except KeyError:
+            pass
+        else:
+            return
+
+        thread = await self.bot.threads.find(recipient=member)
+        if not thread:
+            return
+
+        embed = discord.Embed(description="The recipient has left the appeals server.", color=self.bot.error_color)
+        await thread.channel.send(embed=embed)
+
+    @commands.Cog.listener()
+    async def on_member_join(self, member: discord.Member) -> None:
+        """
+        Aquire a lock and handle member joins.
+
+        A lock is aquired so that subsequent join and leave events
+        happen only after the current member join event is fully
+        handled.
+        """
+        user_lock = self.user_locks.setdefault(member.id, asyncio.Lock())
+        async with user_lock:
+            await self._handle_join(member)
+
+    @commands.Cog.listener()
+    async def on_member_remove(self, member: discord.Member) -> None:
+        """
+        Aquire a lock and handle member removals.
+
+        A lock is aquired so that subsequent join and leave events
+        happen only after the current member remove event is fully
+        handled.
+        """
+        user_lock = self.user_locks.setdefault(member.id, asyncio.Lock())
+        async with user_lock:
+            await self._handle_remove(member)
 
     @checks.has_permissions(PermissionLevel.SUPPORTER)
     @commands.group(invoke_without_command=True, aliases=("appeal_category",))
@@ -213,25 +308,6 @@ class BanAppeals(commands.Cog):
             embed.title = "Ban appeal"
 
             await thread.recipient.send(embed=embed)
-
-    @commands.Cog.listener()
-    async def on_member_remove(self, member: discord.Member) -> None:
-        """
-        Notify if a member who is appealing leaves the appeals guild.
-
-        An embed is sent in the thread once they leave.
-        """
-        await self.init_task
-
-        if not member.guild == self.appeals_guild:
-            return
-
-        thread = await self.bot.threads.find(recipient=member)
-        if not thread:
-            return
-
-        embed = discord.Embed(description="The recipient has left the appeals server.", color=self.bot.error_color)
-        await thread.channel.send(embed=embed)
 
 
 def setup(bot: ModmailBot) -> None:
