@@ -267,6 +267,7 @@ class PingManager(commands.Cog):
 
         if not (channel := self.bot.get_channel(ping_task.channel_id)):
             log.info("Channel closed before we could ping.")
+            await self.remove_ping_task(ping_task)
         else:
             channel: discord.TextChannel
             try:
