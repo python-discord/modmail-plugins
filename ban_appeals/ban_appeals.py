@@ -65,7 +65,7 @@ class BanAppeals(commands.Cog):
         for member in self.appeals_guild.members:
             await self._maybe_kick_user(member)
 
-    async def _maybe_kick_user(self, member: discord.Member) -> None:
+    async def _maybe_kick_user(self, member: discord.Member) -> bool:
         """
         Kick members joining appeals if they are not banned, and not part of the bypass list.
 
@@ -96,7 +96,7 @@ class BanAppeals(commands.Cog):
 
                 thread = await self.bot.threads.find(recipient=member)
                 if not thread:
-                    return
+                    return False
 
                 embed = discord.Embed(
                     description="The recipient joined the appeals server and has been autokicked.",
