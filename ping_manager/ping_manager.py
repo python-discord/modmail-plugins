@@ -229,7 +229,7 @@ class PingManager(commands.Cog):
         logs = await self.bot.api.get_log(channel.id)
         for message in reversed(logs["messages"]):
             # Look through logged messages in reverse order since replies are likely to be last.
-            if message["author"]["mod"] and message["type"] == "thread_message":
+            if message["author"]["mod"] and message["type"] in ("thread_message", "anonymous"):
                 log.info("Not pinging in %s as a mod has sent a reply in the thread.", channel)
                 return False
             if message["author"]["mod"]:
