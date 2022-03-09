@@ -17,7 +17,7 @@ class Tagging(commands.Cog):
     @commands.command()
     @commands.cooldown(2, 600, commands.BucketType.channel)
     @checks.thread_only()
-    async def tag(self, ctx: commands.Context, tag: Optional[str]) -> None:
+    async def tag(self, ctx: commands.Context, *, tag: Optional[str]) -> None:
         """
         Append a tag at the beginning of the channel name.
 
