@@ -15,6 +15,7 @@ class Tagging(commands.Cog):
 
     @checks.has_permissions(PermissionLevel.SUPPORTER)
     @commands.command()
+    @commands.cooldown(2, 600, commands.BucketType.channel)
     @checks.thread_only()
     async def tag(self, ctx: commands.Context, tag: Optional[str]) -> None:
         """
