@@ -1,5 +1,6 @@
 from typing import Optional
 
+import discord
 from discord.ext import commands
 
 from bot import ModmailBot
@@ -15,7 +16,6 @@ class Tagging(commands.Cog):
 
     @checks.has_permissions(PermissionLevel.SUPPORTER)
     @commands.command()
-    @commands.cooldown(2, 600, commands.BucketType.channel)
     @checks.thread_only()
     async def tag(self, ctx: commands.Context, *, tag: Optional[str]) -> None:
         """
@@ -30,6 +30,12 @@ class Tagging(commands.Cog):
         else:
             name = clean_name
 
+        embed = discord.Embed(
+            title=f"Tag `{tag}` applied successfully",
+            description="Changes may take up to 10 minutes to take effect.",
+            color=discord.Color.green(),
+        )
+        await ctx.send(embed=embed)
         await ctx.channel.edit(name=name)
         await ctx.message.add_reaction("\u2705")
 
