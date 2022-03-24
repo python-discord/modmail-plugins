@@ -16,7 +16,7 @@ class Tagging(commands.Cog):
     @checks.has_permissions(PermissionLevel.SUPPORTER)
     @commands.command()
     @checks.thread_only()
-    async def tag(self, ctx: commands.Context, tag: Optional[str]) -> None:
+    async def tag(self, ctx: commands.Context, *, tag: Optional[str]) -> None:
         """
         Append a tag at the beginning of the channel name.
 
@@ -29,6 +29,9 @@ class Tagging(commands.Cog):
         else:
             name = clean_name
 
+        await ctx.reply(
+            "Changes may take up to 10 minutes to take effect due to rate-limits."
+        )
         await ctx.channel.edit(name=name)
         await ctx.message.add_reaction("\u2705")
 
