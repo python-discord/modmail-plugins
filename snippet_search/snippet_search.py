@@ -15,22 +15,11 @@ class SnippetSearch(commands.Cog):
         self.bot = bot
 
     @checks.has_permissions(PermissionLevel.SUPPORTER)
-    @commands.command()
-    async def snippetsearch(self, ctx: commands.Context, *, query: Optional[str] = None) -> None:
+    @commands.command(name="snippetsearch")
+    async def snippet_search(self, ctx: commands.Context, *, query: Optional[str] = None) -> None:
         """
         Search for a snippet.
         """
-        if not self.bot.snippets:
-            embed = discord.Embed(
-                color=self.bot.error_color,
-                description="You dont have any snippets at the moment.",
-            )
-            embed.set_footer(
-                text=f'Check "{self.bot.prefix}help snippet add" to add a snippet.'
-            )
-            embed.set_author(name="Snippets", icon_url=ctx.guild.icon_url)
-            return await ctx.send(embed=embed)
-
         if query is None:
             snippets = self.bot.snippets
         else:
@@ -40,12 +29,26 @@ class SnippetSearch(commands.Cog):
                 if query.lower() in k
             }
 
+        if not snippets:
+            embed = discord.Embed(
+                description="No snippets found.",
+                color=self.bot.error_color,
+            )
+            await ctx.send(embed=embed)
+            return
+
         embeds = []
 
         for name, val in snippets.items():
-            description = f"{name}\n\n{truncate(escape_code_block(val), 2048 - 7)}"
-            embed = discord.Embed(color=self.bot.main_color, description=description)
-            embed.set_author(name="Snippets", icon_url=ctx.guild.icon_url)
+            content = truncate(escape_code_block(val), 2048 - 7)
+            embed = (
+                discord.Embed(
+                    title=f'Snippets Found ({len(snippets)})',
+                    color=self.bot.main_color,
+                )
+                .add_field(name="Name", value=f"`{name}`")
+                .add_field(name="Raw Content", value=f"```\n{content}\n```")
+            )
             embeds.append(embed)
 
         session = EmbedPaginatorSession(ctx, *embeds)
