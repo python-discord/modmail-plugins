@@ -16,7 +16,7 @@ WORD_PATTERN = re.compile(r"[a-zA-Z]+")
 THRESHOLD = 1.0
 
 
-def score(query: str | None, name: str, content: str) -> float:
+def score(query: Optional[str], name: str, content: str) -> float:
     """
     Return a numerical sorting score for a snippet based on a query.
 
