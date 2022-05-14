@@ -16,7 +16,7 @@ class SnippetSearch(commands.Cog):
 
     @checks.has_permissions(PermissionLevel.SUPPORTER)
     @commands.command()
-    async def tag(self, ctx: commands.Context, *, query: Optional[str] = None) -> None:
+    async def snippetsearch(self, ctx: commands.Context, *, query: Optional[str] = None) -> None:
         """
         Search for a snippet.
         """
