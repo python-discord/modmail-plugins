@@ -1,20 +1,28 @@
+import re
+from collections import Counter, defaultdict
 from typing import Optional
+
 import discord
 from discord.ext import commands
+
 from bot import ModmailBot
 from core import checks
 from core.models import PermissionLevel
 from core.paginator import EmbedPaginatorSession
-from core.utils import truncate, escape_code_block
-from collections import defaultdict, Counter
-import re
+from core.utils import escape_code_block, truncate
 
 
 WORD_PATTERN = re.compile(r"[a-zA-Z]+")
 THRESHOLD = 1.0
 
 
-def score(query, name, content):
+def score(query: str | None, name: str, content: str) -> float:
+    """
+    Return a numerical sorting score for a snippet based on a query.
+
+    More relevant snippets have higher scores. If the query is None,
+    return a score that always meets the search inclusion threshold.
+    """
     if query is None:
         return THRESHOLD
     return (
@@ -23,11 +31,18 @@ def score(query, name, content):
     )
 
 
-def words(s):
+def words(s: str) -> list[str]:
+    """
+    Extract a list of 'words' from the given string.
+
+    A 'word' is defined by the WORD_PATTERN regex.  This is purely for
+    use by the scoring function so isn't perfect.
+    """
     return WORD_PATTERN.findall(s)
 
 
-def common_word_count(s1, s2):
+def common_word_count(s1: str, s2: str) -> int:
+    """Return the number of words in common between the two strings."""
     return sum(
         (
             Counter(map(str.casefold, words(s1)))
@@ -37,6 +52,14 @@ def common_word_count(s1, s2):
 
 
 def group_snippets_by_content(snippets: dict[str, str]) -> list[tuple[set[str], str]]:
+    """
+    Take a dictionary of snippets (in the form {name: content}) and group together snippets with the same content.
+
+    Snippet contents are stipped of leading and trailing whitespace
+    before comparison.
+
+    The result is of the form [(set_of_snippet_names, content)].
+    """
     names_by_content = defaultdict(set)
     for name, content in snippets.items():
         names_by_content[content.strip()].add(name)
@@ -59,9 +82,7 @@ class SnippetSearch(commands.Cog):
     async def snippet_search(
         self, ctx: commands.Context, *, query: Optional[str] = None
     ) -> None:
-        """
-        Search for a snippet.
-        """
+        """Search for a snippet."""
         grouped_snippets = group_snippets_by_content(self.bot.snippets)
 
         scored_groups = []
@@ -85,9 +106,11 @@ class SnippetSearch(commands.Cog):
             await ctx.send(embed=embed)
             return
 
+        num_results = len(matching_snippet_groups)
+
         result_summary_embed = discord.Embed(
             color=self.bot.main_color,
-            title=f"Found {len(matching_snippet_groups)} Matching Snippet{'s' if len(matching_snippet_groups) > 1 else ''}:",
+            title=f"Found {num_results} Matching Snippet{'s' if num_results > 1 else ''}:",
             description=", ".join(
                 "/".join(f"`{name}`" for name in sorted(names))
                 for names, content in matching_snippet_groups
