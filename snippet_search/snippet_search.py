@@ -43,6 +43,8 @@ class SnippetSearch(commands.Cog):
             description=', '.join(f"`{name}`" for name in snippets),
         )
 
+        await ctx.send(embed=result_summary_embed)
+
         embeds = []
 
         for i, (name, val) in enumerate(snippets.items(), start=1):
@@ -50,7 +52,7 @@ class SnippetSearch(commands.Cog):
             embed = (
                 discord.Embed(
                     color=self.bot.main_color,
-                    title="Snippet {i}",
+                    title=f"Snippet {i}",
                 )
                 .add_field(name="Name", value=f"`{name}`", inline=False)
                 .add_field(name="Raw Content", value=f"```\n{content}\n```", inline=False)
