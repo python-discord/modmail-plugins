@@ -46,8 +46,8 @@ class SnippetSearch(commands.Cog):
                     title=f'Snippets Found ({len(snippets)})',
                     color=self.bot.main_color,
                 )
-                .add_field(name="Name", value=f"`{name}`")
-                .add_field(name="Raw Content", value=f"```\n{content}\n```")
+                .add_field(name="Name", value=f"`{name}`", inline=False)
+                .add_field(name="Raw Content", value=f"```\n{content}\n```", inline=False)
             )
             embeds.append(embed)
 
