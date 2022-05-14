@@ -100,7 +100,7 @@ class SnippetSearch(commands.Cog):
 
         for names, content in matching_snippet_groups:
             formatted_content = (
-                f"```\n{truncate(escape_code_block(content), 2048 - 7)}\n```"
+                f"```\n{truncate(escape_code_block(content), 1000)}\n```"
             )
             embed = (
                 discord.Embed(
