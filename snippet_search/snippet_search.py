@@ -34,7 +34,11 @@ class SnippetSearch(commands.Cog):
         if query is None:
             snippets = self.bot.snippets
         else:
-            snippets = {k: v for k, v in self.bot.snippets if query.lower() in k}
+            snippets = {
+                k: v
+                for k, v in self.bot.snippets.items()
+                if query.lower() in k
+            }
 
         embeds = []
 
