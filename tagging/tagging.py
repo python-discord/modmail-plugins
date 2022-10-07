@@ -38,4 +38,4 @@ class Tagging(commands.Cog):
 
 async def setup(bot: ModmailBot) -> None:
     """Add the Tagging plugin."""
-    bot.add_cog(Tagging(bot))
+    await bot.add_cog(Tagging(bot))

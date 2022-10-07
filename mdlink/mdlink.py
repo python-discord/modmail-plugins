@@ -22,4 +22,4 @@ class MDLink(commands.Cog):
 
 async def setup(bot: ModmailBot) -> None:
     """Add the MDLink plugin."""
-    bot.add_cog(MDLink(bot))
+    await bot.add_cog(MDLink(bot))

@@ -300,4 +300,4 @@ class PingManager(commands.Cog):
 
 async def setup(bot: ModmailBot) -> None:
     """Add the PingManager plugin."""
-    bot.add_cog(PingManager(bot))
+    await bot.add_cog(PingManager(bot))

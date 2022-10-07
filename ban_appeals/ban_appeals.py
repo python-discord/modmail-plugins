@@ -236,4 +236,4 @@ class BanAppeals(commands.Cog):
 
 async def setup(bot: ModmailBot) -> None:
     """Add the BanAppeals cog."""
-    bot.add_cog(BanAppeals(bot))
+    await bot.add_cog(BanAppeals(bot))
