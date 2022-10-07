@@ -16,7 +16,7 @@ MESSAGES_BUFFER = deque(maxlen=BUFFER_LENGTH)
 COOLDOWN_TIME = 10
 
 
-def setup(bot: ModmailBot) -> None:
+async def setup(bot: ModmailBot) -> None:
     """Monkey patch the built-in reply function to add a cooldown between uses."""
     _reply = Thread.reply
 

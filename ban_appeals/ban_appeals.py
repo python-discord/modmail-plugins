@@ -234,6 +234,6 @@ class BanAppeals(commands.Cog):
         await thread.channel.send(embed=embed)
 
 
-def setup(bot: ModmailBot) -> None:
+async def setup(bot: ModmailBot) -> None:
     """Add the BanAppeals cog."""
     bot.add_cog(BanAppeals(bot))

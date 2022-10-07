@@ -105,6 +105,6 @@ class CloseMessage(commands.Cog):
         await ctx.send(f'> {DEFAULT_CLOSE_MESSAGE}')
 
 
-def setup(bot: ModmailBot) -> None:
+async def setup(bot: ModmailBot) -> None:
     """Load the CloseMessage plugin."""
     bot.add_cog(CloseMessage(bot))
