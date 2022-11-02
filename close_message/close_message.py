@@ -40,19 +40,19 @@ class UserFriendlyDuration(time.UserFriendlyTime):
         if argument.strip().isdigit():
             argument = f'{argument}m'
 
-        await super().convert(ctx, argument)
+        result = await super().convert(ctx, argument)
 
-        if self.default_close_duration and self.arg == argument:
+        if self.default_close_duration and result.arg == argument:
             # the user didn't enter a time or duration
-            await super().convert(ctx, f'{self.default_close_duration} {argument}')
+            result = await super().convert(ctx, f'{self.default_close_duration} {argument}')
 
-        if self.arg:
-            add_period = not self.arg.endswith((".", "!", "?"))
-            self.arg = self.arg + (". " if add_period else " ") + DEFAULT_CLOSE_MESSAGE
+        if result.arg:
+            add_period = not result.arg.endswith((".", "!", "?"))
+            result.arg = result.arg + (". " if add_period else " ") + DEFAULT_CLOSE_MESSAGE
         else:
-            self.arg = DEFAULT_CLOSE_MESSAGE
+            result.arg = DEFAULT_CLOSE_MESSAGE
 
-        return self
+        return result
 
 
 class CloseMessage(commands.Cog):
