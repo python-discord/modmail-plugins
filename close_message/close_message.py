@@ -23,6 +23,7 @@ class UserFriendlyDuration(time.UserFriendlyTime):
     """
 
     def __init__(self, *, default_close_duration: t.Optional[str] = None) -> None:
+        super().__init__()
         self.default_close_duration = default_close_duration
 
     async def convert(self, ctx: commands.Context, argument: str) -> "UserFriendlyDuration":
