@@ -36,6 +36,6 @@ class Tagging(commands.Cog):
         await ctx.message.add_reaction("\u2705")
 
 
-def setup(bot: ModmailBot) -> None:
+async def setup(bot: ModmailBot) -> None:
     """Add the Tagging plugin."""
-    bot.add_cog(Tagging(bot))
+    await bot.add_cog(Tagging(bot))

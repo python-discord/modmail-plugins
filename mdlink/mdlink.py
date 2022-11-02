@@ -20,6 +20,6 @@ class MDLink(commands.Cog):
         await ctx.send(f"`[{text}]({link})`")
 
 
-def setup(bot: ModmailBot) -> None:
+async def setup(bot: ModmailBot) -> None:
     """Add the MDLink plugin."""
-    bot.add_cog(MDLink(bot))
+    await bot.add_cog(MDLink(bot))
