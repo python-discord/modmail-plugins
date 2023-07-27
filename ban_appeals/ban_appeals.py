@@ -21,7 +21,7 @@ APPEAL_GUILD_ID = 890261951979061298
 BAN_APPEAL_MESSAGE = (
     "Please be patient, it may take a while for us to respond to ban appeals.\n\n"
     "To ensure we can respond to your appeal, make sure you keep your DMs "
-    "open and do not block the bot."
+    "open, stay in the appeal server, and do not block the bot."
 )
 
 log = getLogger(__name__)
