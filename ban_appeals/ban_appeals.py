@@ -304,7 +304,7 @@ class BanAppeals(commands.Cog):
             else:
                 footer = self.bot.config["thread_creation_footer"]
 
-            embed.set_footer(text=footer, icon_url=self.bot.guild.icon_url)
+            embed.set_footer(text=footer, icon_url=self.bot.guild.icon.url)
             embed.title = "Ban appeal"
 
             await thread.recipient.send(embed=embed)
