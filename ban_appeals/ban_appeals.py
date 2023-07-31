@@ -9,7 +9,7 @@ from bot import ModmailBot
 from core import checks
 from core.models import PermissionLevel, getLogger
 from core.thread import Thread
-from .utils import async_tasks, get_or_fetch
+from .utils import get_or_fetch
 
 PYDIS_NO_KICK_ROLE_IDS = (
     267627879762755584,  # Owners in PyDis
@@ -41,12 +41,10 @@ class BanAppeals(commands.Cog):
 
         self.db = self.bot.plugin_db.get_partition(self)
 
-        self.init_task = async_tasks.create_task(self.init_plugin(), self.bot.loop)
-
         self.user_locks: weakref.WeakValueDictionary[int, asyncio.Lock] = weakref.WeakValueDictionary()
         self.ignore_next_remove_event: set[int] = set()
 
-    async def init_plugin(self) -> None:
+    async def cog_load(self) -> None:
         """Initialise the plugin's configuration."""
         self.pydis_guild = self.bot.guild
         self.appeals_guild = self.bot.get_guild(APPEAL_GUILD_ID)
@@ -58,10 +56,11 @@ class BanAppeals(commands.Cog):
         self.logs_channel = discord.utils.get(self.appeals_guild.channels, name="logs")
 
         log.info("Plugin loaded, checking if there are people to kick.")
-        await self._sync_kicks()
+        asyncio.create_task(self._sync_kicks())
 
     async def _sync_kicks(self) -> None:
         """Iter through all members in appeals guild, kick them if they meet criteria."""
+        await asyncio.sleep(5)
         for member in self.appeals_guild.members:
             await self._maybe_kick_user(member)
 
@@ -127,8 +126,6 @@ class BanAppeals(commands.Cog):
         If a member rejoins while appealing, it's notified in their
         thread.
         """
-        await self.init_task
-
         if member.guild == self.pydis_guild:
             # Join event from PyDis
             # Kick them from appeals guild now they're back in PyDis
@@ -175,8 +172,6 @@ class BanAppeals(commands.Cog):
 
         An embed is sent in the thread once they leave.
         """
-        await self.init_task
-
         if not member.guild == self.appeals_guild:
             return
 
@@ -230,7 +225,6 @@ class BanAppeals(commands.Cog):
     @appeal_category_management.command(name="get")
     async def get_categories(self, ctx: commands.Context) -> None:
         """Get the list of appeal categories of commands for managing appeal categories."""
-        await self.init_task
         category_str = ", ".join(map(str, self.appeal_categories)) if self.appeal_categories else "None"
 
         await ctx.send(f"Currently configured appeal categories are: {category_str}")
@@ -239,8 +233,6 @@ class BanAppeals(commands.Cog):
     @appeal_category_management.command(name="add")
     async def add_category(self, ctx: commands.Context, appeal_category: discord.CategoryChannel) -> None:
         """Add a category to the list of ignored categories."""
-        await self.init_task
-
         if appeal_category.id in self.appeal_categories:
             await ctx.send(f":x: {appeal_category} already in the appeal category list.")
             return
@@ -258,8 +250,6 @@ class BanAppeals(commands.Cog):
     @appeal_category_management.command(name="delete", aliases=("remove", "del", "rem"))
     async def del_category(self, ctx: commands.Context, category_to_remove: discord.CategoryChannel) -> None:
         """Remove a category from the list of appeal categories."""
-        await self.init_task
-
         if category_to_remove.id not in self.appeal_categories:
             await ctx.send(f":x: {category_to_remove} isn't in the appeal categories list.")
             return
@@ -282,8 +272,6 @@ class BanAppeals(commands.Cog):
     @commands.Cog.listener()
     async def on_thread_ready(self, thread: Thread, *args) -> None:
         """If the new thread is for an appeal, move it to the appeals category."""
-        await self.init_task
-
         if await self._is_banned_pydis(thread.recipient):
             category = await self.get_useable_appeal_category()
             if category:

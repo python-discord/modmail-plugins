@@ -10,7 +10,6 @@ from bot import ModmailBot
 from core import checks
 from core.models import PermissionLevel, getLogger
 from core.thread import Thread
-from .utils import async_tasks
 
 # Remove view perms from this role while pining, so only on-duty mods get the ping.
 MOD_TEAM_ROLE_ID = 267629731250176001
@@ -49,9 +48,7 @@ class PingManager(commands.Cog):
         self.ping_tasks: list[PingTask] = None
         self.db = bot.api.get_plugin_partition(self)
 
-        self.init_task = async_tasks.create_task(self.init_plugin(), self.bot.loop)
-
-    async def init_plugin(self) -> None:
+    async def cog_load(self) -> None:
         """Fetch the current config from the db."""
         db_config = await self.db.find_one({"_id": "ping-delay-config"})
         db_config = db_config or {}
@@ -66,7 +63,7 @@ class PingManager(commands.Cog):
         log.info("Loaded config: %s", self.config)
         log.info("Loaded %d ping tasks", len(self.ping_tasks))
         for task in self.ping_tasks:
-            async_tasks.create_task(self.maybe_ping_later(task), self.bot.loop)
+            asyncio.create_task(self.maybe_ping_later(task))
 
     @commands.group(invoke_without_command=True)
     @checks.has_permissions(PermissionLevel.SUPPORTER)
@@ -84,8 +81,6 @@ class PingManager(commands.Cog):
     @checks.has_permissions(PermissionLevel.OWNER)
     async def set_initial(self, ctx: commands.Context, wait_duration: int) -> None:
         """Set the number of seconds to wait after a thread is opened to ping."""
-        await self.init_task
-
         await self.db.find_one_and_update(
             {"_id": "ping-delay-config"},
             {"$set": {"initial_wait_duration": wait_duration}},
@@ -98,8 +93,6 @@ class PingManager(commands.Cog):
     @checks.has_permissions(PermissionLevel.OWNER)
     async def set_delayed(self, ctx: commands.Context, wait_duration: int) -> None:
         """Set the number of seconds to wait after a thread is opened to ping."""
-        await self.init_task
-
         await self.db.find_one_and_update(
             {"_id": "ping-delay-config"},
             {"$set": {"delayed_wait_duration": wait_duration}},
@@ -127,8 +120,6 @@ class PingManager(commands.Cog):
     @ping_string.command(name="set")
     async def set_ping(self, ctx: commands.Context, ping_string: str) -> None:
         """Set what to send after a waiting for a thread to be responded to."""
-        await self.init_task
-
         await self.db.find_one_and_update(
             {"_id": "ping-delay-config"},
             {"$set": {"ping_string": ping_string}},
@@ -153,8 +144,6 @@ class PingManager(commands.Cog):
     @ping_ignore_categories.command(name="add", aliases=("set",))
     async def set_category(self, ctx: commands.Context, category_to_ignore: discord.CategoryChannel) -> None:
         """Add a category to the list of ignored categories."""
-        await self.init_task
-
         if category_to_ignore.id in self.config.ignored_categories:
             await ctx.send(f":x: {category_to_ignore} already in the ignored categories.")
             return
@@ -172,8 +161,6 @@ class PingManager(commands.Cog):
     @ping_ignore_categories.command(name="get")
     async def get_category(self, ctx: commands.Context) -> None:
         """Get the list of ignored categories."""
-        await self.init_task
-
         if not self.config.ignored_categories:
             await ctx.send("There are currently no ignored categories.")
             return
@@ -185,8 +172,6 @@ class PingManager(commands.Cog):
     @ping_ignore_categories.command(name="delete", aliases=("remove", "del", "rem"))
     async def del_category(self, ctx: commands.Context, category_to_ignore: discord.CategoryChannel) -> None:
         """Remove a category from the list of ignored categories."""
-        await self.init_task
-
         if category_to_ignore.id not in self.config.ignored_categories:
             await ctx.send(f":x: {category_to_ignore} isn't in the ignored categories list.")
             return
@@ -208,7 +193,7 @@ class PingManager(commands.Cog):
             upsert=True,
         )
 
-        async_tasks.create_task(self.maybe_ping_later(task), self.bot.loop)
+        asyncio.create_task(self.maybe_ping_later(task))
 
     async def remove_ping_task(self, task: PingTask) -> None:
         """Removes a ping task to the internal cache and to the db."""
@@ -289,7 +274,6 @@ class PingManager(commands.Cog):
     @commands.Cog.listener()
     async def on_thread_ready(self, thread: Thread, *args) -> None:
         """Schedule a task to check if the bot should ping in the thread after the defined wait duration."""
-        await self.init_task
         now = datetime.utcnow()
         ping_task = PingTask(
             when_to_ping=(now + timedelta(seconds=self.config.initial_wait_duration)).isoformat(),
