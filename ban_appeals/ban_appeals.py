@@ -98,7 +98,7 @@ class BanAppeals(commands.Cog):
                     return False
 
                 embed = discord.Embed(
-                    description="The recipient joined the appeals server and has been autokicked.",
+                    description="The recipient joined the appeals server and has been automatically kicked.",
                     color=self.bot.error_color
                 )
                 await thread.channel.send(embed=embed)
@@ -200,9 +200,9 @@ class BanAppeals(commands.Cog):
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member) -> None:
         """
-        Aquire a lock and handle member joins.
+        Acquire a lock and handle member joins.
 
-        A lock is aquired so that subsequent join and leave events
+        A lock is acquired so that subsequent join and leave events
         happen only after the current member join event is fully
         handled.
         """
@@ -213,9 +213,9 @@ class BanAppeals(commands.Cog):
     @commands.Cog.listener()
     async def on_member_remove(self, member: discord.Member) -> None:
         """
-        Aquire a lock and handle member removals.
+        Acquire a lock and handle member removals.
 
-        A lock is aquired so that subsequent join and leave events
+        A lock is acquired so that subsequent join and leave events
         happen only after the current member remove event is fully
         handled.
         """
