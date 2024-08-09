@@ -156,7 +156,7 @@ class BanAppeals(commands.Cog):
             thread = await self.bot.threads.find(recipient=member)
             if not thread:
                 return
-            
+
             category = await self.get_useable_appeal_category()
             embed = discord.Embed(
                 description=f"Moving thread to `{category}` category since recipient has joined the appeals server.",
@@ -240,7 +240,7 @@ class BanAppeals(commands.Cog):
     @checks.has_permissions(PermissionLevel.OWNER)
     @appeal_category_management.command(name="add")
     async def add_category(self, ctx: commands.Context, appeal_category: discord.CategoryChannel) -> None:
-        """Add a category to the list of ignored categories."""
+        """Add a category to the list of appeal categories."""
         if appeal_category.id in self.appeal_categories:
             await ctx.send(f":x: {appeal_category} already in the appeal category list.")
             return
