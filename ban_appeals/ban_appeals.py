@@ -157,19 +157,22 @@ class BanAppeals(commands.Cog):
             if not thread:
                 return
 
-            category = await self.get_useable_appeal_category()
+            description = "The recipient has joined the appeals server."
+            if thread.channel.category.id not in self.appeal_categories:
+                category = await self.get_useable_appeal_category()
+                description = f"Thread moved to `{category}` category since recipient has joined the appeals server."
+                await thread.channel.move(
+                    category=category,
+                    end=True,
+                    sync_permissions=True,
+                    reason=f"{member} joined appeals server.",
+                )
+
             embed = discord.Embed(
-                description=f"Moving thread to `{category}` category since recipient has joined the appeals server.",
+                description=description,
                 color=self.bot.mod_color
             )
             await thread.channel.send(embed=embed)
-
-            await thread.channel.move(
-                category=category,
-                end=True,
-                sync_permissions=True,
-                reason=f"{member} joined appeals server.",
-            )
 
     async def _handle_remove(self, member: discord.Member) -> None:
         """
