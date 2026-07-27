@@ -61,8 +61,13 @@ class BanAppeals(commands.Cog):
     async def _sync_kicks(self) -> None:
         """Iter through all members in appeals guild, kick them if they meet criteria."""
         await asyncio.sleep(5)
-        for member in self.appeals_guild.members:
-            await self._maybe_kick_user(member)
+        semaphore = asyncio.Semaphore(5)
+
+        async def _process(member: discord.Member) -> None:
+            async with semaphore:
+                await self._maybe_kick_user(member)
+
+        await asyncio.gather(*(_process(m) for m in self.appeals_guild.members))
 
     async def _maybe_kick_user(self, member: discord.Member) -> bool:
         """
