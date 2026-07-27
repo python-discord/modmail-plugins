@@ -67,7 +67,9 @@ class BanAppeals(commands.Cog):
             async with semaphore:
                 await self._maybe_kick_user(member)
 
+        log.info("Starting kick job for ban appeals server")
         await asyncio.gather(*(_process(m) for m in self.appeals_guild.members))
+        log.info("Kick job for ban appeals server completed")
 
     async def _maybe_kick_user(self, member: discord.Member) -> bool:
         """
