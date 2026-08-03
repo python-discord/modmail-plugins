@@ -20,7 +20,7 @@ async def setup(bot: ModmailBot) -> None:
     """Monkey patch the built-in reply function to add a cooldown between uses."""
     _reply = Thread.reply
 
-    async def reply(self: commands.Cog, message: discord.Message, anonymous: bool = False, plain: bool = False) -> None:
+    async def reply(self: commands.Cog, message: discord.Message, content: str = None, anonymous: bool = False, plain: bool = False) -> None:
         """The new reply function with a cooldown between uses."""
         # Bypass the cooldown if the message has attachments.
         if not message.attachments:
@@ -34,6 +34,6 @@ async def setup(bot: ModmailBot) -> None:
                     return
 
         MESSAGES_BUFFER.append((message.channel.id, message.content, time.time()))
-        await _reply(self, message, anonymous, plain)
+        await _reply(self, message, content, anonymous, plain)
 
     Thread.reply = reply
